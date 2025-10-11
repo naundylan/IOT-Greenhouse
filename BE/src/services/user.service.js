@@ -3,12 +3,13 @@ import { userModel } from '~/models/User.model'
 import ApiError from '~/utils/ApiError'
 import { StatusCodes } from 'http-status-codes'
 import bcryptjs from 'bcryptjs'
-import { v4 as uuidv4} from 'uuid'
+import { v4 as uuidv4 } from 'uuid'
 import { pickUser } from '~/utils/formatter'
 import { WEBSITE_DOMAIN } from '~/utils/constants'
 import { BrevoProvider } from '~/providers/Brevo.provider'
 import { env } from '~/config/environment'
 import { JwtProvider } from '~/providers/Jwt.provider'
+import { CloudinaryProvider } from '~/providers/Cloudinary.provider'
 
 const createNew = async (reqBody) => {
   try {
@@ -87,7 +88,7 @@ const login = async (reqBody) => {
   } catch (error) { throw error }
 }
 
-const refreshToken = async (clientRefreshToken) =>{
+const refreshToken = async (clientRefreshToken) => {
   try {
     const refreshTokenDecoded = await JwtProvider.verifyToken(clientRefreshToken, env.SECRET_KEY)
 
@@ -106,9 +107,9 @@ const refreshToken = async (clientRefreshToken) =>{
   } catch (error) { throw error }
 }
 
-const update = async (userId, reqBody) => {
+const update = async (userId, reqBody, userAvtarFile) => {
   try {
-    //query user trong db cho chắc chắn 
+    //query user trong db cho chắc chắn
     const existUser = await userModel.findOneById(userId)
     if (!existUser) throw new ApiError(StatusCodes.NOT_FOUND, 'ACCOUNT NOT FOUND')
     if (!existUser.isActive) throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'YOUR ACCOUNT IS NOT ACTIVE')
@@ -121,12 +122,17 @@ const update = async (userId, reqBody) => {
       if (!bcryptjs.compareSync(reqBody.current_password, existUser.password)) {
         throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'YOUR CURRENT PASSWORD IS INCORRECT')
       }
-      updateUser = await userModel.update(existUser, {
+      updateUser = await userModel.update(existUser._id, {
         password: bcryptjs.hashSync(reqBody.new_password, 8)
       })
+    } else if (userAvtarFile) {
+      // Trường hợp update avatar cloudinary
+      const uploadResult = await CloudinaryProvider.streamUpload(userAvtarFile.buffer, 'users')
+      // Lưu url ảnh vào db
+      updateUser = await userModel.update(existUser._id, { avatar: uploadResult.secure_url })
     } else {
       // Trường hợp update thông tin khác
-      updateUser = await userModel.update(existUser, reqBody)
+      updateUser = await userModel.update(existUser._id, reqBody)
     }
 
     return pickUser(updateUser)
