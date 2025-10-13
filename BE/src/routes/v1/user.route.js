@@ -18,6 +18,15 @@ Router.route('/login')
 Router.route('/logout')
   .delete(userController.logout)
 
+Router.route('/password/forgot')
+  .post(userValidation.forgotPassword, userController.forgotPassword)
+
+Router.route('/password/verify_token')
+  .post(userValidation.verifyResetToken, userController.verifyResetToken)
+
+Router.route('/password/reset')
+  .post(userValidation.resetPassword, userController.resetPassword)
+
 Router.route('/refresh_token')
   .get(userController.refreshToken)
 

@@ -9,6 +9,9 @@ export const PASSWORD_RULE_MESSAGE ='password must include at least 1 letter, a 
 export const EMAIL_RULE = /^\S+@\S+\.\S+$/
 export const EMAIL_RULE_MESSAGE = 'Email is invalid.'
 
+export const USERNAME_RULE = /^[a-zA-Z0-9._-]{3,24}$/
+export const USERNAME_RULE_MESSAGE = 'Username must be 3-24 characters long and can only contain letters, numbers, periods (.), underscores (_), and hyphens (-).'
+
 export const PHONE_RULE = /^(0|\+84)(3[2-9]|5[6|8|9]|7[0|6-9]|8[1-5]|9[0-4|6-9])[0-9]{7}$/
 export const PHONE_RULE_MESSAGE = 'Phone number is invalid.'
 
