@@ -1,0 +1,185 @@
+import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+    AppBar, Avatar, Box, Divider, List, ListItem,
+    ListItemIcon, ListItemText, Paper, Toolbar, Typography, Stack, IconButton,
+    CircularProgress, Alert
+} from "@mui/material";
+import HomeIcon from "@mui/icons-material/Home";
+import LocalFloristIcon from "@mui/icons-material/LocalFlorist";
+import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import { getDashboardData } from "../../services/dashboardService"; // <-- IMPORT SERVICE MỚI
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import MenuIcon from '@mui/icons-material/Menu';
+import { getCurrentUser } from "../../services/authService";
+import Metric from "../../components/Metric";
+
+// Styled component cho Card thông tin
+function DashboardPage() {
+    const navigate = useNavigate();
+    const [user, setUser] = useState(null);
+    const [dashboardData, setDashboardData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    // === BƯỚC 2: Dùng useEffect để gọi API khi component được mount ===
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                // Dùng Promise.all để gọi cả 2 API cùng lúc cho hiệu năng tốt hơn
+                const [userResponse, dashboardResponse] = await Promise.all([
+                    getCurrentUser(),
+                    getDashboardData()
+                ]);
+
+                // Cập nhật state với dữ liệu thật từ API
+                setUser(userResponse.data);
+                setDashboardData(dashboardResponse.data);
+
+            } catch (err) {
+                console.error("Lỗi khi tải dữ liệu:", err);
+                if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+                    handleLogout();
+                } else {
+                    setError("Không thể tải dữ liệu từ máy chủ.");
+                }
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
+    }, [handleLogout]);
+
+    const [anchorEl, setAnchorEl] = React.useState(null);
+    const open = Boolean(anchorEl);
+    const handleClick = (event) => setAnchorEl(event.currentTarget);
+    const handleClose = () => setAnchorEl(null);
+
+    // === BƯỚC 3: Tạo hàm Logout ===
+    const handleLogout = useCallback(() => {
+        localStorage.removeItem('userToken');
+        navigate('/login');
+    }, [navigate]);
+
+    // === BƯỚC 4: Xử lý các trạng thái giao diện ===
+
+    // 4.1. Trạng thái ĐANG TẢI
+    if (loading) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
+
+    // 4.2. Trạng thái LỖI
+    if (error) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+                <Alert severity="error">{error}</Alert>
+            </Box>
+        );
+    }
+
+    // 4.3. Trạng thái HIỂN THỊ DỮ LIỆU THÀNH CÔNG
+    return (
+        <Box sx={{
+            height: "100%",
+            width: "100%",
+            display: "flex",
+            flexDirection: "column",
+            backgroundImage: "url(/nen.png)",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+        }}>
+            {/* THANH APPBAR TRÊN CÙNG */}
+            <AppBar position="sticky" elevation={0} sx={{ background: "linear-gradient(to right, #97B067, #437057)" }}>
+                <Toolbar sx={{ display: "flex", justifyContent: "space-between" }}>
+                    <Typography variant="h5">GREENHOUSE</Typography>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                        <Typography sx={{ display: { xs: 'none', sm: 'block' } }}> {/* Ẩn tên trên màn hình quá nhỏ */}
+                            {user ? user.name : 'Loading...'}
+                        </Typography>
+
+                        <Avatar
+                            alt={user?.name}
+                            src={user?.avatarUrl}
+                        />
+                        <IconButton
+                            color="inherit"
+                            onClick={handleClick} // `handleClick` là hàm để mở menu
+                        >
+                            <MenuIcon />
+                        </IconButton>
+                        <Menu anchorEl={anchorEl} open={open} onClose={handleClose}>
+                            <MenuItem onClick={handleClose}>Setting</MenuItem>
+                            <MenuItem onClick={handleLogout}>Logout</MenuItem> {/* <-- Gắn hàm logout vào đây */}
+                        </Menu>
+                    </Box>
+                </Toolbar>
+            </AppBar>
+
+            {/* NỘI DUNG CHÍNH */}
+            {/* Sử dụng optional chaining (?.) để tránh lỗi nếu dashboardData chưa có */}
+            <Box sx={{ flex: 1, overflowY: 'auto', p: { xs: 2, md: 3 } }}>
+                <Box sx={{ /* ... Giữ nguyên style của grid layout ... */ }}>
+                    {/* CỘT BÊN TRÁI */}
+                    <InfoCard elevation={0} sx={{ p: 3 }}>
+                        <Stack spacing={2}>
+                            <Stack direction="row" spacing={1.5} alignItems="center">
+                                <HomeIcon fontSize="large" />
+                                <Typography variant="h4" fontWeight={700}>{dashboardData?.name}</Typography>
+                            </Stack>
+                            <Stack direction="row" spacing={1.5} alignItems="center">
+                                <LocalFloristIcon />
+                                <Typography variant="h6">{dashboardData?.plant}</Typography>
+                            </Stack>
+                            {/* ... */}
+                            <Box sx={{ /* ... */ }}>
+                                {dashboardData?.metrics.map((m) => (<Metric key={m.id} {...m} />))}
+                            </Box>
+                        </Stack>
+                    </InfoCard>
+
+                    {/* CỘT BÊN PHẢI */}
+                    <Card elevation={0} sx={{ p: 3 }}>
+                        <Stack spacing={4}>
+                            {/* Box Thông báo */}
+                            <Box>
+                                {/* ... */}
+                                <Box sx={{ /* ... */ }}>
+                                    <List dense>
+                                        {dashboardData?.notifications.map((n) => (
+                                            <ListItem key={n.id} /* ... */>
+                                                {/* ... */}
+                                                <ListItemText primary={<Typography fontWeight={500}>{n.message}</Typography>} secondary={<Typography variant="caption">{n.time}</Typography>} />
+                                            </ListItem>
+                                        ))}
+                                    </List>
+                                </Box>
+                            </Box>
+                            {/* Box Biểu đồ */}
+                            <Box>
+                                {/* ... */}
+                                <Box sx={{ height: 300 }}>
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart data={dashboardData?.chartData} /* ... */>
+                                            {/* ... các Line component ... */}
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </Box>
+                            </Box>
+                        </Stack>
+                    </Card>
+                </Box>
+            </Box>
+        </Box>
+    );
+}
+
+export default DashboardPage;
