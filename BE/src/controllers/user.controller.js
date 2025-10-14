@@ -24,13 +24,13 @@ const login = async ( req, res, next) => {
     res.cookie('accessToken', result.accessToken, {
       httpOnly: true,
       secure: true,
-      sameSize: 'none',
+      sameSite: 'none',
       maxAge: ms('7 days')
     })
     res.cookie('refreshToken', result.accessToken, {
       httpOnly: true,
       secure: true,
-      sameSize: 'none',
+      sameSite: 'none',
       maxAge: ms('7 days')
     })
 
@@ -47,13 +47,34 @@ const logout = async (req, res, next) => {
   } catch (error) { next(error) }
 }
 
+const forgotPassword = async (req, res, next) => {
+  try {
+    const result = await userService.forgotPassword(req.body)
+    res.status(StatusCodes.OK).json(result)
+  } catch (error) { next(error) }
+}
+
+const verifyResetToken = async (req, res, next) => {
+  try {
+    const result = await userService.verifyResetToken(req.body)
+    res.status(StatusCodes.OK).json(result)
+  } catch (error) { next(error) }
+}
+
+const resetPassword = async (req, res, next) => {
+  try {
+    const passwordReset = await userService.resetPassword(req.body)
+    res.status(StatusCodes.OK).json(passwordReset)
+  } catch (error) { next(error) }
+}
+
 const refreshToken = async (req, res, next) => {
   try {
-    const result = await userService.refreshToken(req.cookie?.refreshToken)
+    const result = await userService.refreshToken(req.cookies?.refreshToken)
     res.cookie('accessToken', result.accessToken, {
       httpOnly: true,
       secure: true,
-      sameSize: 'none',
+      sameSite: 'none',
       maxAge: ms('14 days')
     })
     res.status(StatusCodes.OK).json(result)
@@ -62,10 +83,23 @@ const refreshToken = async (req, res, next) => {
   }
 }
 
+const update = async (req, res, next) => {
+  try {
+    const userId = req.jwtDecoded._id
+    const userAvtarFile = req.file
+    const updatedUser = await userService.update(userId, req.body, userAvtarFile)
+    res.status(StatusCodes.OK).json(updatedUser)
+  } catch (error) { next(error) }
+}
+
 export const userController = {
   createNew,
   verifyAccount,
   login,
   logout,
-  refreshToken
+  refreshToken,
+  forgotPassword,
+  verifyResetToken,
+  resetPassword,
+  update
 }

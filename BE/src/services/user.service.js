@@ -3,12 +3,13 @@ import { userModel } from '~/models/User.model'
 import ApiError from '~/utils/ApiError'
 import { StatusCodes } from 'http-status-codes'
 import bcryptjs from 'bcryptjs'
-import { v4 as uuidv4} from 'uuid'
+import { v4 as uuidv4 } from 'uuid'
 import { pickUser } from '~/utils/formatter'
 import { WEBSITE_DOMAIN } from '~/utils/constants'
 import { BrevoProvider } from '~/providers/Brevo.provider'
 import { env } from '~/config/environment'
 import { JwtProvider } from '~/providers/Jwt.provider'
+import { CloudinaryProvider } from '~/providers/Cloudinary.provider'
 
 const createNew = async (reqBody) => {
   try {
@@ -18,12 +19,12 @@ const createNew = async (reqBody) => {
       throw new ApiError(StatusCodes.CONFLICT, 'Email already exist!')
     }
     // Tạo data lưu vào db
-    const nameFromEmail = reqBody.email.split('@')[0]
+    // const nameFromEmail = reqBody.email.split('@')[0]
     const newUser = {
       email: reqBody.email,
       password: bcryptjs.hashSync(reqBody.password, 8), // Tham số thứ 2 là độ phức tạp giá trị càng cao thì hash càng lâu
-      username: nameFromEmail,
-      displayName: nameFromEmail, // Mặc định để giống username
+      username: reqBody.username,
+      displayName: reqBody.username, // Mặc định để giống username
       verifyToken: uuidv4()
     }
     // add vào db
@@ -87,7 +88,58 @@ const login = async (reqBody) => {
   } catch (error) { throw error }
 }
 
-const refreshToken = async (clientRefreshToken) =>{
+const forgotPassword = async (reqBody) => {
+  try {
+    const existUser = await userModel.findOneByEmail(reqBody.email)
+    if (!existUser) throw new ApiError(StatusCodes.NOT_FOUND, 'ACCOUNT NOT FOUND')
+    if (!existUser.isActive) throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'YOUR ACCOUNT IS NOT ACTIVE')
+
+    const resetToken = uuidv4()
+    await userModel.update(existUser._id, { verifyPwdToken: resetToken })
+    const verifycationLink = `${WEBSITE_DOMAIN}/account/reset_password?email=${existUser.email}&token=${resetToken}`
+    const customSubject = 'Reset your password'
+    const htmlContent = `
+      <h3>Here is your password reset link:</h3>
+      <h3>${verifycationLink}</h3>
+      <p>If you did not request a password reset, please ignore this email.</p>
+    `
+    await BrevoProvider.sendEMail(existUser.email, customSubject, htmlContent)
+    const message = 'Please check your email to get the password reset link'
+    return message
+  } catch (error) { throw error }
+}
+
+const verifyResetToken = async (reqBody) => {
+  try {
+    const existUser = await userModel.findOneByEmail(reqBody.email)
+    if (reqBody.token !== existUser.verifyPwdToken)
+      throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'TOKEN IS INVALID')
+
+    return {
+      id: existUser._id,
+      email: existUser.email
+    }
+  } catch (error) { throw error }
+}
+
+const resetPassword = async (reqBody) => {
+  try {
+    const existUser = await userModel.findOneByEmail(reqBody.email)
+    if (!existUser) throw new ApiError(StatusCodes.NOT_FOUND, 'ACCOUNT NOT FOUND')
+    if (reqBody.token !== existUser.verifyPwdToken) throw new ApiError(StatusCodes.NOT_FOUND, 'THE RECOVERY REQUEST IS INVALID')
+
+    const newHashedPassword = bcryptjs.hashSync(reqBody.password, 8)
+    const updatedUser = {
+      password: newHashedPassword,
+      verifyPwdToken: null
+    }
+    await userModel.update(existUser._id, updatedUser)
+    const message = 'Password reset successful.'
+    return message
+  } catch (error) { throw error }
+}
+
+const refreshToken = async (clientRefreshToken) => {
   try {
     const refreshTokenDecoded = await JwtProvider.verifyToken(clientRefreshToken, env.SECRET_KEY)
 
@@ -106,9 +158,45 @@ const refreshToken = async (clientRefreshToken) =>{
   } catch (error) { throw error }
 }
 
+const update = async (userId, reqBody, userAvtarFile) => {
+  try {
+    //query user trong db cho chắc chắn
+    const existUser = await userModel.findOneById(userId)
+    if (!existUser) throw new ApiError(StatusCodes.NOT_FOUND, 'ACCOUNT NOT FOUND')
+    if (!existUser.isActive) throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'YOUR ACCOUNT IS NOT ACTIVE')
+
+    //Khởi tạo update user
+    let updateUser = {}
+    //Trường hợp change password
+    if (reqBody.current_password && reqBody.new_password) {
+      //kiểm tra current_password đúng hay không ?
+      if (!bcryptjs.compareSync(reqBody.current_password, existUser.password)) {
+        throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'YOUR CURRENT PASSWORD IS INCORRECT')
+      }
+      updateUser = await userModel.update(existUser._id, {
+        password: bcryptjs.hashSync(reqBody.new_password, 8)
+      })
+    } else if (userAvtarFile) {
+      // Trường hợp update avatar cloudinary
+      const uploadResult = await CloudinaryProvider.streamUpload(userAvtarFile.buffer, 'users')
+      // Lưu url ảnh vào db
+      updateUser = await userModel.update(existUser._id, { avatar: uploadResult.secure_url })
+    } else {
+      // Trường hợp update thông tin khác
+      updateUser = await userModel.update(existUser._id, reqBody)
+    }
+
+    return pickUser(updateUser)
+  } catch (error) {throw error}
+}
+
 export const userService = {
   createNew,
   verifyAccount,
   login,
-  refreshToken
+  forgotPassword,
+  verifyResetToken,
+  resetPassword,
+  refreshToken,
+  update
 }

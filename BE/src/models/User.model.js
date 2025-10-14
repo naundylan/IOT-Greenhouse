@@ -1,12 +1,14 @@
 import Joi from 'joi'
+import { verify } from 'jsonwebtoken'
 import { ObjectId } from 'mongodb'
 import { GET_DB } from '~/config/mongodb'
-import { EMAIL_RULE, PASSWORD_RULE } from '~/utils/validator'
+import { EMAIL_RULE, PASSWORD_RULE, PHONE_RULE } from '~/utils/validator'
 
 const USER_ROLE = {
-  CLIENT: 'clinet',
+  CLIENT: 'client',
   ADMIN: 'admin'
 }
+const GENDER = { MALE: 'male', FEMALE: 'female', NON_BINARY: 'non-binary' }
 
 const USER_COLLECTION_NAME = 'users'
 const USER_COLLECTION_SCHEMA = Joi.object({
@@ -17,9 +19,13 @@ const USER_COLLECTION_SCHEMA = Joi.object({
   displayName: Joi.string().required().trim().strict(),
   role: Joi.string().valid(USER_ROLE.CLIENT, USER_ROLE.ADMIN).default(USER_ROLE.CLIENT),
   avatar: Joi.string().default(null),
+  gender: Joi.string().default(GENDER.NON_BINARY),
+  dateOfBirth: Joi.date().max('now').allow(null).default(null),
+  phoneNumber: Joi.string().pattern(PHONE_RULE).allow(null).default(null),
 
   isActive: Joi.boolean().default(false),
   verifyToken: Joi.string(),
+  verifyPwdToken: Joi.string().allow(null).default(null),
 
   createdAt: Joi.date().timestamp('javascript').default(Date.now),
   updateAt: Joi.date().timestamp('javascript').default(null),
@@ -60,15 +66,18 @@ const update = async (userId, updateData) => {
     //Lọc các field không cho phép update
     Object.keys(updateData).forEach(fieldName => {
       if ( INVALID_UPDATE_FIELDS.includes(fieldName)) {
-        delete updateData(fieldName)
+        // correctly delete forbidden fields from the update object
+        delete updateData[fieldName]
       }
     })
+
+    // Use findOneAndUpdate and return the updated document (not the command result wrapper)
     const result = await GET_DB().collection(USER_COLLECTION_NAME).findOneAndUpdate(
       { _id: new ObjectId(userId) },
       { $set: updateData },
       { returnDocument: 'after' } // trả về kết quả mới khi cập nhật
     )
-    return result
+    return result.value
   } catch (error) { throw new Error(error) }
 }
 

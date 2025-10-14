@@ -12,7 +12,7 @@ const isAuthorized = async (req, res, next) => {
 
   try {
     const accessTokenDecoded = await JwtProvider.verifyToken(clinetAccessToken, env.SECRET_KEY)
-
+    //lưu thông tin token hợp lệ
     req.jwtDecoded = accessTokenDecoded
 
     next()
