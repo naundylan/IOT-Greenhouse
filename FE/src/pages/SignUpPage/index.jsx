@@ -56,7 +56,7 @@ function SignUpPage() {
             const payload = {
                 email: formData.email,
                 username: formData.username,
-                password: formData.password,
+                password: formData.password, 
             };
 
             const response = await registerUser(payload);

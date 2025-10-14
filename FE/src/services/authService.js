@@ -1,6 +1,6 @@
 import axios from 'axios';
 // Giả sử backend của bạn chạy ở địa chỉ này
-const API_URL = '/api/v1/auth';// <-- THAY ĐỔI URL NÀY CHO ĐÚNG VỚI BACKEND CỦA BẠN
+const API_URL = 'http://localhost:8100/v1';
 
 // Tạo một instance của axios với cấu hình cơ bản
 const apiClient = axios.create({
@@ -12,18 +12,25 @@ const apiClient = axios.create({
 // Hàm đăng ký người dùng
 export const registerUser = (userData) => {
     // Backend thường sẽ cần endpoint là /register hoặc /signup
-    return apiClient.post('/register', userData); 
+    return apiClient.post('users/register', userData); 
 };
 // Hàm đăng nhập người dùng
 export const loginUser = (credentials) => {
     // !!! THAY ĐỔI '/login' nếu endpoint của bạn khác
-    return apiClient.post('/login', credentials);
+    return apiClient.post('users/login', credentials);
 };
 //Hàm quên mật khẩu
 export const forgotPassword = (emailData) => {
-    return apiClient.post('/forgot-password', emailData);
+    return apiClient.post('users/forgot-password', emailData);
 };
 export const getCurrentUser = () => {
-    // !!! THAY ĐỔI '/me' nếu endpoint của bạn khác (ví dụ: /profile)
-    return apiClient.get('/me'); 
+    return apiClient.get('users/verity'); 
+};
+// Hàm đặt lại mật khẩu
+export const resetPassword = (resetData) => {
+    return apiClient.post('users/reset-password', resetData);
+};
+// Hàm đăng xuất người dùng
+export const logoutUser = () => {
+    return apiClient.post('users/logout');
 };

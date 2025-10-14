@@ -20,6 +20,43 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { Card, InfoCard } from "../../components/StyledComponent";
 import Metric from "../../components/Metrics";
 import { Dot } from "../../components/StyledComponent";
+import StatusLevelModal from "../../components/StatusLevelModal";
+
+const METRIC_STATUS_LEVELS = {
+    'CO₂': [
+        { level: 'Thấp', range: '< 400 ppm', description: 'Cây quang hợp chậm, cần bổ sung CO₂.', color: '#64b5f6' }, // blue
+        { level: 'Tối ưu', range: '800 - 1200 ppm', description: 'Mức độ lý tưởng cho sự phát triển của cây.', color: '#66bb6a' }, // green
+        { level: 'Cao', range: '1201 - 2000 ppm', description: 'Nồng độ cao, có thể không hiệu quả, cần thông gió.', color: '#ffa726' }, // orange
+        { level: 'Nguy hiểm', range: '> 2000 ppm', description: 'Nồng độ rất cao, có thể gây hại cho cây.', color: '#ef5350' } // red
+    ],
+    'Ánh sáng': [
+        { level: 'Lạnh', range: '< 18°C', description: 'Quá lạnh, cây phát triển chậm.', color: '#64b5f6' },
+        { level: 'Tối ưu', range: '22°C - 28°C', description: 'Nhiệt độ lý tưởng cho hầu hết các loại cây.', color: '#66bb6a' },
+        { level: 'Nóng', range: '> 30°C', description: 'Quá nóng, cây có thể bị stress nhiệt.', color: '#ef5350' }
+    ],
+    'Độ ẩm không khí': [
+        { level: 'Khô', range: '< 50%', description: 'Không khí khô, cây dễ mất nước.', color: '#ffa726' },
+        { level: 'Tối ưu', range: '60% - 75%', description: 'Độ ẩm phù hợp cho sự phát triển.', color: '#66bb6a' },
+        { level: 'Ẩm ướt', range: '> 85%', description: 'Độ ẩm cao, dễ gây nấm mốc và bệnh.', color: '#64b5f6' }
+    ],
+    'Nhiệt độ không khí': [
+        { level: 'Lạnh', range: '< 18°C', description: 'Quá lạnh, cây phát triển chậm.', color: '#64b5f6' },
+        { level: 'Tối ưu', range: '22°C - 28°C', description: 'Nhiệt độ lý tưởng cho hầu hết các loại cây.', color: '#66bb6a' },
+    ],
+    'Độ ẩm đất': [
+        { level: 'Khô', range: '< 40%', description: 'Đất quá khô, cần tưới nước.', color: '#ef5350' },
+        { level: 'Tối ưu', range: '50% - 70%', description: 'Độ ẩm đất phù hợp cho sự phát triển của cây.', color: '#66bb6a' },
+        { level: 'Ẩm ướt', range: '> 80%', description: 'Đất quá ẩm ',color: '#64b5f6' }
+    ],
+    'Nhiệt độ đất': [   
+         { level: 'Lạnh', range: '< 18°C', description: 'Quá lạnh, cây phát triển chậm.', color: '#64b5f6' },
+        { level: 'Tối ưu', range: '22°C - 28°C', description: 'Nhiệt độ lý tưởng cho hầu hết các loại cây.', color: '#66bb6a' },
+    ],
+    // Mặc định cho các metric khác
+    'default': [
+        { level: 'Bình thường', range: 'N/A', description: 'Thông số trong ngưỡng an toàn.', color: '#66bb6a' }
+    ]
+};
 
 const greenhouseUserData = {
     name: 'Admin (Offline)',
@@ -62,24 +99,26 @@ const greenhouseData = {
 // ====================================================================
 
 function DashboardPage() {
+    // Phần chính của component DashboardPage
     const navigate = useNavigate();
     const [user, setUser] = useState(null);
     const [dashboardData, setDashboardData] = useState(null);
     const [loading, setLoading] = useState(true);
     /* 
     const [error, setError] = useState(null);*/
-
     const [anchorEl, setAnchorEl] = useState(null);
     const open = Boolean(anchorEl);
     const handleClick = (event) => setAnchorEl(event.currentTarget);
     const handleClose = () => setAnchorEl(null);
-    const handleSetting = 
+
     const handleLogout = useCallback(() => {
         // Hàm logout vẫn hoạt động bình thường
         localStorage.removeItem('userToken');
         navigate('/login');
     }, [navigate]);
-
+    const handleSetting = useCallback(() => {
+        navigate('/settings');
+    }, [navigate]);
     // useEffect giờ đây sẽ chỉ dùng dữ liệu giả
     useEffect(() => {
         console.log("Đang chạy ở chế độ OFFLINE. Sử dụng Mock Data.");
@@ -93,7 +132,7 @@ function DashboardPage() {
 
         // Dọn dẹp timer khi component bị unmount
         return () => clearTimeout(timer);
-    }, []); 
+    }, []);
     // useEffect sử dụng API
     /*
     useEffect(() => {
@@ -131,7 +170,17 @@ function DashboardPage() {
         fetchData();
     }, [handleLogout]);
     */
+    // Mở modal mức độ trạng thái
+    const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+    const [selectedMetric, setSelectedMetric] = useState(null);
+    const handleMetricClick = (metric) => {
+        setSelectedMetric(metric); // Lưu lại thông tin của metric được click
+        setIsStatusModalOpen(true);    // Mở modal
+    };
 
+    const handleCloseStatusModal = () => {
+        setIsStatusModalOpen(false); // Đóng modal
+    };
     // Màn hình loading vẫn hoạt động
     if (loading) {
         return (
@@ -174,7 +223,7 @@ function DashboardPage() {
                             <MenuIcon />
                         </IconButton>
                         <Menu anchorEl={anchorEl} open={open} onClose={handleClose}>
-                            <MenuItem onClick={handleClose}>Setting</MenuItem>
+                            <MenuItem onClick={handleSetting}>Setting</MenuItem>
                             <MenuItem onClick={handleLogout}>Logout</MenuItem>
                         </Menu>
                     </Box>
@@ -211,7 +260,7 @@ function DashboardPage() {
                                 gap: 6,
                                 alignItems: "center",
                             }}>
-                                {greenhouseData?.metrics?.map((m) => (<Metric key={m.id} {...m} />))}
+                                {greenhouseData?.metrics?.map((m) => (<Metric key={m.id} {...m} onClick={() => handleMetricClick(m)} />))}
                             </Box>
                         </Stack>
                     </InfoCard>
@@ -290,6 +339,12 @@ function DashboardPage() {
                     </Card>
                 </Box>
             </Box>
+            <StatusLevelModal
+                open={isStatusModalOpen}
+                onClose={handleCloseStatusModal}
+                metric={selectedMetric}
+                levels={METRIC_STATUS_LEVELS[selectedMetric?.label] || METRIC_STATUS_LEVELS['default']}
+            />
         </Box>
     );
 }
