@@ -9,7 +9,7 @@ export default defineConfig({
     proxy: {
       // Bất kỳ request nào bắt đầu bằng /api sẽ được chuyển tiếp
       '/api': {
-        target: 'http://localhost:8100', // Địa chỉ của backend
+        target: 'http://localhost:8100/v1', // Địa chỉ của backend
         changeOrigin: true, // Cần thiết cho virtual hosted sites
         secure: false,      // Nếu backend của bạn dùng http
       }
