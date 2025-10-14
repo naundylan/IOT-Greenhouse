@@ -27,6 +27,7 @@ function SettingPage() {
             </Box>
         </Box>
     );
+    //long đã thêm code ở đây
 }
 
 export default SettingPage;
