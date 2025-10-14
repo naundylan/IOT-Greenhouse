@@ -47,6 +47,27 @@ const logout = async (req, res, next) => {
   } catch (error) { next(error) }
 }
 
+const forgotPassword = async (req, res, next) => {
+  try {
+    const result = await userService.forgotPassword(req.body)
+    res.status(StatusCodes.OK).json(result)
+  } catch (error) { next(error) }
+}
+
+const verifyResetToken = async (req, res, next) => {
+  try {
+    const result = await userService.verifyResetToken(req.body)
+    res.status(StatusCodes.OK).json(result)
+  } catch (error) { next(error) }
+}
+
+const resetPassword = async (req, res, next) => {
+  try {
+    const passwordReset = await userService.resetPassword(req.body)
+    res.status(StatusCodes.OK).json(passwordReset)
+  } catch (error) { next(error) }
+}
+
 const refreshToken = async (req, res, next) => {
   try {
     const result = await userService.refreshToken(req.cookies?.refreshToken)
@@ -77,5 +98,8 @@ export const userController = {
   login,
   logout,
   refreshToken,
+  forgotPassword,
+  verifyResetToken,
+  resetPassword,
   update
 }

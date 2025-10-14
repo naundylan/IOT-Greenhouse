@@ -1,10 +1,11 @@
 import Joi from 'joi'
+import { verify } from 'jsonwebtoken'
 import { ObjectId } from 'mongodb'
 import { GET_DB } from '~/config/mongodb'
 import { EMAIL_RULE, PASSWORD_RULE, PHONE_RULE } from '~/utils/validator'
 
 const USER_ROLE = {
-  CLIENT: 'clinet',
+  CLIENT: 'client',
   ADMIN: 'admin'
 }
 const GENDER = { MALE: 'male', FEMALE: 'female', NON_BINARY: 'non-binary' }
@@ -24,6 +25,7 @@ const USER_COLLECTION_SCHEMA = Joi.object({
 
   isActive: Joi.boolean().default(false),
   verifyToken: Joi.string(),
+  verifyPwdToken: Joi.string().allow(null).default(null),
 
   createdAt: Joi.date().timestamp('javascript').default(Date.now),
   updateAt: Joi.date().timestamp('javascript').default(null),
