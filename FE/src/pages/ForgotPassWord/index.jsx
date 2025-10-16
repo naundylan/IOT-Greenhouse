@@ -10,7 +10,6 @@ import {
     CircularProgress,
 } from '@mui/material';
 import EmailIcon from '@mui/icons-material/Email';
-
 import { forgotPassword } from '../../services/authService';
 import StyledTextField from '../../components/StyledTextField';
 
@@ -28,9 +27,6 @@ function ForgotPasswordPage() {
 
         try {
             await forgotPassword({ email });
-
-            // QUAN TRỌNG: Không chuyển hướng. Chỉ hiển thị thông báo.
-            // Đây là một best practice về bảo mật để tránh lộ thông tin email nào đã đăng ký.
             setSuccessMessage('Nếu email của bạn tồn tại trong hệ thống, một liên kết đặt lại mật khẩu đã được gửi đi.');
 
         } catch (apiError) {
@@ -71,10 +67,10 @@ function ForgotPasswordPage() {
                 }}
             >
                 <Typography color="white" variant="h3" component="h1" sx={{ mb: 1, fontWeight: 'bold' }}>
-                    Forgot Password
+                    Quên mật khẩu
                 </Typography>
                 <Typography color="#BDBDBD" sx={{ mb: 3, textAlign: 'center' }}>
-                    Enter your email to receive a password reset link.
+                    Nhập email của bạn và chúng tôi sẽ gửi cho bạn một liên kết để đặt lại mật khẩu.
                 </Typography>
 
                 {error && <Alert severity="error" sx={{ width: '100%', mb: 2 }}>{error}</Alert>}
@@ -85,7 +81,7 @@ function ForgotPasswordPage() {
                     
                     {/* Vô hiệu hóa nút sau khi đã gửi thành công */}
                     <Button type="submit" variant="contained" color="success" disabled={loading || successMessage} sx={{ height: '72px', borderRadius: '50px', fontSize: '22px', fontWeight: 'bold', textTransform: 'none' }}>
-                        {loading ? <CircularProgress size={30} color="inherit" /> : 'Send Reset Link'}
+                        {loading ? <CircularProgress size={30} color="inherit" /> : 'Gửi liên kết đặt lại mật khẩu'}
                     </Button>
                 </Stack>
 

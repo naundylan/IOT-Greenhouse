@@ -1,5 +1,3 @@
-// src/components/StyledTextField.jsx
-
 import { styled } from '@mui/material/styles';
 import TextField from '@mui/material/TextField';
 
@@ -25,6 +23,4 @@ const StyledTextField = styled(TextField)(({ theme }) => ({
         paddingLeft: theme.spacing(1),
     },
 }));
-
-// Quan trọng: export nó ra để các file khác có thể import và sử dụng
 export default StyledTextField;
