@@ -92,30 +92,30 @@ function LoginPage() {
             >
 
                 <Typography color="white" variant="h3" component="h1" sx={{ mb: 3, fontWeight: 'bold' }}>
-                    Sign In
+                    Đăng Nhập
                 </Typography>
 
                 {error && (<Alert severity="error" sx={{ width: '100%', mb: 2, borderRadius: '16px' }}>{error}</Alert>)}
 
                 <Stack spacing={3} sx={{ width: '100%' }}>
                     <StyledTextField name="email" placeholder="Email" fullWidth required type="email" value={formData.email} onChange={handleChange} InputProps={{ startAdornment: (<InputAdornment position="start"><EmailIcon sx={{ ml: 2, fontSize: 30 }} /></InputAdornment>) }} />
-                    <StyledTextField name="password" placeholder="Password" type={showPassword ? 'text' : 'password'} fullWidth required value={formData.password} onChange={handleChange} InputProps={{ startAdornment: (<InputAdornment position="start"><LockIcon sx={{ ml: 2, fontSize: 30 }} /></InputAdornment>), endAdornment: (<InputAdornment position="end"><IconButton onClick={() => setShowPassword(!showPassword)} edge="end" sx={{ mr: 1 }}>{showPassword ? <VisibilityOff /> : <Visibility />}</IconButton></InputAdornment>) }} />
+                    <StyledTextField name="password" placeholder="Mật Khẩu" type={showPassword ? 'text' : 'password'} fullWidth required value={formData.password} onChange={handleChange} InputProps={{ startAdornment: (<InputAdornment position="start"><LockIcon sx={{ ml: 2, fontSize: 30 }} /></InputAdornment>), endAdornment: (<InputAdornment position="end"><IconButton onClick={() => setShowPassword(!showPassword)} edge="end" sx={{ mr: 1 }}>{showPassword ? <VisibilityOff /> : <Visibility />}</IconButton></InputAdornment>) }} />
                     <Typography align="right" sx={{ mt: -2, mb: 2 }}>
                         <Link to="/forgot-password" style={{ color: '#BDBDBD', fontSize: '16px' }}>
-                            Forgot Password?
+                            Quên mật khẩu?
                         </Link>
                     </Typography>
                     <Button type="submit" variant="contained" color="success" disabled={loading} sx={{ height: '72px', borderRadius: '50px', fontSize: '22px', fontWeight: 'bold', textTransform: 'none' }}>
-                        {loading ? <CircularProgress size={30} color="inherit" /> : 'Sign In'}
+                        {loading ? <CircularProgress size={30} color="inherit" /> : 'Đăng Nhập'}
                     </Button>
                 </Stack>
 
                 {/* SỬA: Link điều hướng */}
 
                 <Typography color="#BDBDBD" mt={3} sx={{ fontSize: '18px' }}>
-                    Don't have an account?{' '}
+                    Bạn chưa có tài khoản?{' '}
                     <Link to="/signup" style={{ color: '#81c784', fontWeight: 'bold', textDecoration: 'none' }}>
-                        Sign Up
+                        Đăng Ký
                     </Link>
                 </Typography>
             </Box>

@@ -16,7 +16,6 @@ apiClient.interceptors.request.use((config) => {
 export const getDashboardData = () => {
     return apiClient.get('/overview');
 };
-
-// export const getMetrics = () => apiClient.get('/metrics');
-// export const getNotifications = () => apiClient.get('/notifications');
-// export const getChartData = () => apiClient.get('/chart-data?period=24h');
+export const getMetrics = () => apiClient.get('/metrics');
+export const getNotifications = () => apiClient.get('/notifications');
+export const getChartData = () => apiClient.get('/chart-data?period=24h');

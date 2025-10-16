@@ -43,12 +43,6 @@ function StatusLevelModal({ open, onClose, metric, levels }) {
                     <StatusLevelItem key={index} {...item} />
                 ))}
             </DialogContent>
-
-            <DialogActions>
-                <Button onClick={onClose} color="success">
-                    Đóng
-                </Button>
-            </DialogActions>
         </Dialog>
     );
 }

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Box, Grid } from '@mui/material';
 import SettingsSidebar from '../../components/SettingsSidebar';
-import AccountSettings from '../../components/AccountSettings';
+import AccountSettings from '../../components/Settings/AccountSettings';
 // import AlertSettings from '../../components/AlertSettings'; // Component cho tương lai
 
 function SettingPage() {
