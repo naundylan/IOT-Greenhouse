@@ -1,11 +1,11 @@
 # boot.py
 # (Giữ nguyên file đã tạo ở bước trước)
-
+# co2 D6
 import network
 import time
 
-ssid = "Manh Ben."
-password = "manhben262"
+ssid = "UESA.HUSC"
+password = "44448888"
 
 station = network.WLAN(network.STA_IF)
 station.active(True)
