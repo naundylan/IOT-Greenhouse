@@ -44,8 +44,6 @@ function LoginPage() {
 
             const response = await loginUser(formData);
 
-            console.log('Đăng nhập thành công:', response.data);
-
             if (response.data.token) {
                 localStorage.setItem('userToken', response.data.token);
             }
@@ -101,7 +99,7 @@ function LoginPage() {
                     <StyledTextField name="email" placeholder="Email" fullWidth required type="email" value={formData.email} onChange={handleChange} InputProps={{ startAdornment: (<InputAdornment position="start"><EmailIcon sx={{ ml: 2, fontSize: 30 }} /></InputAdornment>) }} />
                     <StyledTextField name="password" placeholder="Mật Khẩu" type={showPassword ? 'text' : 'password'} fullWidth required value={formData.password} onChange={handleChange} InputProps={{ startAdornment: (<InputAdornment position="start"><LockIcon sx={{ ml: 2, fontSize: 30 }} /></InputAdornment>), endAdornment: (<InputAdornment position="end"><IconButton onClick={() => setShowPassword(!showPassword)} edge="end" sx={{ mr: 1 }}>{showPassword ? <VisibilityOff /> : <Visibility />}</IconButton></InputAdornment>) }} />
                     <Typography align="right" sx={{ mt: -2, mb: 2 }}>
-                        <Link to="/forgot-password" style={{ color: '#BDBDBD', fontSize: '16px' }}>
+                        <Link to="/password/forgot" style={{ color: '#BDBDBD', fontSize: '16px' }}>
                             Quên mật khẩu?
                         </Link>
                     </Typography>

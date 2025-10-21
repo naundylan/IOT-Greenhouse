@@ -1,191 +1,274 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+const METRIC_STATUS_LEVELS = {
+    'CO₂': [
+        { level: 'Thấp', range: '< 400 ppm', description: 'Cây quang hợp chậm, cần bổ sung CO₂.', color: '#64b5f6' }, // blue
+        { level: 'Tối ưu', range: '800 - 1200 ppm', description: 'Mức độ lý tưởng cho sự phát triển của cây.', color: '#66bb6a' }, // green
+        { level: 'Cao', range: '1201 - 2000 ppm', description: 'Nồng độ cao, có thể không hiệu quả, cần thông gió.', color: '#ffa726' }, // orange
+        { level: 'Nguy hiểm', range: '> 2000 ppm', description: 'Nồng độ rất cao, có thể gây hại cho cây.', color: '#ef5350' } // red
+    ],
+
+    'Ánh sáng': [
+        { level: 'Lạnh', range: '< 18°C', description: 'Quá lạnh, cây phát triển chậm.', color: '#64b5f6' },
+        { level: 'Tối ưu', range: '22°C - 28°C', description: 'Nhiệt độ lý tưởng cho hầu hết các loại cây.', color: '#66bb6a' },
+        { level: 'Nóng', range: '> 30°C', description: 'Quá nóng, cây có thể bị stress nhiệt.', color: '#ef5350' }
+    ],
+
+    'Độ ẩm không khí': [
+        { level: 'Khô', range: '< 50%', description: 'Không khí khô, cây dễ mất nước.', color: '#ffa726' },
+        { level: 'Tối ưu', range: '60% - 75%', description: 'Độ ẩm phù hợp cho sự phát triển.', color: '#66bb6a' },
+        { level: 'Ẩm ướt', range: '> 85%', description: 'Độ ẩm cao, dễ gây nấm mốc và bệnh.', color: '#64b5f6' }
+    ],
+
+    'Nhiệt độ không khí': [
+        { level: 'Lạnh', range: '< 18°C', description: 'Quá lạnh, cây phát triển chậm.', color: '#64b5f6' },
+        { level: 'Tối ưu', range: '22°C - 28°C', description: 'Nhiệt độ lý tưởng cho hầu hết các loại cây.', color: '#66bb6a' },
+    ],
+
+    'Độ ẩm đất': [
+        { level: 'Khô', range: '< 40%', description: 'Đất quá khô, cần tưới nước.', color: '#ef5350' },
+        { level: 'Tối ưu', range: '50% - 70%', description: 'Độ ẩm đất phù hợp cho sự phát triển của cây.', color: '#66bb6a' },
+        { level: 'Ẩm ướt', range: '> 80%', description: 'Đất quá ẩm ', color: '#64b5f6' }
+    ],
+
+    'Nhiệt độ đất': [
+        { level: 'Lạnh', range: '< 18°C', description: 'Quá lạnh, cây phát triển chậm.', color: '#64b5f6' },
+        { level: 'Tối ưu', range: '22°C - 28°C', description: 'Nhiệt độ lý tưởng cho hầu hết các loại cây.', color: '#66bb6a' },
+    ],
+    'default': [
+        { level: 'Bình thường', range: 'N/A', description: 'Thông số trong ngưỡng an toàn.', color: '#66bb6a' }
+    ]
+};
+
+
+
+// src/pages/DashBoard/index.jsx
+import React, { useState, useEffect } from "react";
 import {
-    Box,
-    TextField,
-    Button,
-    Typography,
-    InputAdornment,
-    IconButton,
-    Stack,
-    Alert,
-    CircularProgress,
-} from '@mui/material';
-import EmailIcon from '@mui/icons-material/Email';
-import PersonIcon from '@mui/icons-material/Person';
-import LockIcon from '@mui/icons-material/Lock';
-import Visibility from '@mui/icons-material/Visibility';
-import VisibilityOff from '@mui/icons-material/VisibilityOff';
-import { registerUser } from '../../services/authService';
-import StyledTextField from '../../components/StyledTextField';
+  Box, Divider, List, ListItem,
+  ListItemIcon, ListItemText, Typography, Stack,
+  CircularProgress, Alert, AppBar, Toolbar, IconButton,
+  Menu, MenuItem, Avatar
+} from "@mui/material";
 
+import HomeIcon from "@mui/icons-material/Home";
+import LocalFloristIcon from "@mui/icons-material/LocalFlorist";
+import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import QueryStatsIcon from "@mui/icons-material/QueryStats";
+import Co2Icon from "@mui/icons-material/Co2";
+import WbSunnyIcon from "@mui/icons-material/WbSunny";
+import ThermostatIcon from "@mui/icons-material/Thermostat";
+import OpacityIcon from "@mui/icons-material/Opacity";
+import ScienceIcon from "@mui/icons-material/Science";
+import MenuIcon from "@mui/icons-material/Menu";
+import { useNavigate } from 'react-router-dom';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Card, InfoCard, Dot } from "../../components/StyledComponent";
+import Metric from "../../components/Metrics";
+import StatusLevelModal from "../../components/StatusLevelModal";
 
-function SignUpPage() {
-    // Sử dụng useNavigate để chuyển hướng sau khi đăng ký thành công
-    const navigate = useNavigate();
-    // State để quản lý form và các trạng thái khác
-    const [formData, setFormData] = useState({
-        email: '',
-        username: '',
-        password: '',
-        confirmPassword: '',
-    });
-    // State để quản lý hiển thị mật khẩu
-    const [showPassword, setShowPassword] = useState(false);
-    // State để quản lý trạng thái loading và lỗi
-    const [loading, setLoading] = useState(false);
-    //state hiển thị lỗi
-    const [error, setError] = useState(null);
-    // Hàm xử lý khi người dùng thay đổi giá trị trong form
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prevState => ({ ...prevState, [name]: value }));
-    };
-    // Hàm xử lý khi người dùng submit form
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (formData.password !== formData.confirmPassword) {
-            setError("Mật khẩu xác nhận không khớp!");
-            return;
-        }
+// ====================================================================
+// 🧩 MOCK DATA
+// ====================================================================
+const mockDashboardData = {
+  name: "Nhà kính Mockup",
+  plant: "Xà lách 4 mùa (Dữ liệu giả)",
+  status: "Ổn định",
+  metrics: [
+    { id: 1, label: "CO₂", value: "1150 ppm", icon: <Co2Icon /> },
+    { id: 2, label: "Ánh sáng", value: "7500 lux", icon: <WbSunnyIcon /> },
+    { id: 3, label: "Nhiệt độ không khí", value: "27°C", icon: <ThermostatIcon /> },
+    { id: 4, label: "Độ ẩm không khí", value: "68%", icon: <OpacityIcon /> },
+    { id: 5, label: "Độ ẩm đất", value: "62%", icon: <OpacityIcon /> },
+    { id: 6, label: "Nhiệt độ đất", value: "24°C", icon: <ScienceIcon /> },
+  ],
+  notifications: [
+    { id: 1, message: "Hệ thống đang hoạt động ở chế độ mockup.", time: "Vừa xong", type: 'info' },
+    { id: 2, message: "Nhiệt độ không khí vượt ngưỡng 32°C.", time: "2 giờ trước", type: 'error' },
+  ],
+  chartData: [
+    { time: "08:00", nhietdokk: 26, doamkk: 70 },
+    { time: "10:00", nhietdokk: 28, doamkk: 68 },
+    { time: "12:00", nhietdokk: 32, doamkk: 62 },
+    { time: "14:00", nhietdokk: 31, doamkk: 65 },
+  ],
+};
 
-        setError(null);
-        setLoading(true);
+const METRIC_STATUS_LEVELS = {
+  'CO₂': [
+    { level: 'Thấp', range: '< 400 ppm', description: 'Cây quang hợp chậm, cần bổ sung CO₂.', color: '#64b5f6' },
+    { level: 'Tối ưu', range: '800 - 1200 ppm', description: 'Mức độ lý tưởng cho sự phát triển của cây.', color: '#66bb6a' },
+    { level: 'Cao', range: '1201 - 2000 ppm', description: 'Nồng độ cao, cần thông gió.', color: '#ffa726' },
+    { level: 'Nguy hiểm', range: '> 2000 ppm', description: 'Có thể gây hại cho cây.', color: '#ef5350' }
+  ],
+  'default': [
+    { level: 'Bình thường', range: 'N/A', description: 'Thông số trong ngưỡng an toàn.', color: '#66bb6a' }
+  ]
+};
 
-        try {
-            const payload = {
-                email: formData.email,
-                username: formData.username,
-                password: formData.password, 
-            };
+function DashboardPage() {
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const [selectedMetric, setSelectedMetric] = useState(null);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const openMenu = Boolean(anchorEl);
+  const navigate = useNavigate();
 
-            const response = await registerUser(payload);
+  // 🔧 Giả lập tải mock data
+  useEffect(() => {
+    console.warn("📊 Dashboard đang chạy ở chế độ MOCKUP.");
+    const timer = setTimeout(() => {
+      setDashboardData(mockDashboardData);
+      setLoading(false);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
-            console.log('Đăng ký thành công:', response.data);
-            alert('Đăng ký tài khoản thành công! Vui lòng đăng nhập.');
-            navigate('/login');
+  const handleMetricClick = (metric) => {
+    setSelectedMetric(metric);
+    setIsStatusModalOpen(true);
+  };
 
-        } catch (apiError) {
-            console.error('Lỗi đăng ký:', apiError);
-            const errorMessage = apiError.response?.data?.message || 'Đã có lỗi xảy ra. Vui lòng thử lại.';
-            setError(errorMessage);
-        } finally {
-            setLoading(false);
-        }
-    };
-
+  const handleCloseStatusModal = () => setIsStatusModalOpen(false);
+  const handleClickMenu = (event) => setAnchorEl(event.currentTarget);
+  const handleCloseMenu = () => setAnchorEl(null);
+  const handleGoToSettings = () => {
+    navigate('/settings'); // Chuyển trang
+    handleCloseMenu();     // Đóng menu
+  };
+  const handleLogout = () => {
+    // ... Logic đăng xuất ...
+    navigate('/login');
+    handleCloseMenu();
+  };
+  if (loading) {
     return (
-        //
-        <Box
-            sx={{
-                width: '100vw',
-                height: '100vh',
-                display: 'flex',
-                backgroundImage: 'url(/login_bg.svg)',
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                backgroundRepeat: 'no-repeat',
-            }}
-        >
-            <Box
-                component="form"
-                onSubmit={handleSubmit}
-                sx={{
-                    width: { xs: '95%', sm: '80%', md: '50%' },
-                    maxWidth: '650px',
-                    m: 'auto',
-                    backgroundColor: '#22331E',
-                    backdropFilter: 'blur(8px)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    padding: { xs: 3, sm: 4, md: 5 },
-                    borderRadius: '24px',
-                    boxShadow: '0 8px 32px 0 rgba(0,0,0,0.37)',
-                }}
-            >
-                <Typography color="white" variant="h3" component="h1" sx={{ mb: 3, fontWeight: 'bold' }}>
-                    Create Account
-                </Typography>
-
-                {error && (
-                    <Alert severity="error" sx={{ width: '100%', mb: 2, borderRadius: '16px' }}>
-                        {error}
-                    </Alert>
-                )}
-
-                <Stack spacing={3} sx={{ width: '100%' }}>
-                    <StyledTextField name="email" placeholder="Email" fullWidth required type="email" value={formData.email} onChange={handleChange}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <EmailIcon sx={{ ml: 2, fontSize: 30 }} />
-                                </InputAdornment>)
-                        }} />
-                    <StyledTextField name="username" placeholder="Username" fullWidth required value={formData.username} onChange={handleChange}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <PersonIcon sx={{ ml: 2, fontSize: 30 }} />
-                                </InputAdornment>)
-                        }} />
-
-
-                    <StyledTextField
-                        name="password"
-                        placeholder="Password"
-                        type={showPassword ? 'text' : 'password'}
-                        fullWidth
-                        required
-                        value={formData.password}
-                        onChange={handleChange}
-                        InputProps={{
-                            startAdornment: (<InputAdornment position="start"><LockIcon sx={{ ml: 2, fontSize: 30 }} /></InputAdornment>),
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    <IconButton onClick={() => setShowPassword(!showPassword)} edge="end" sx={{ mr: 1 }}>
-                                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                                    </IconButton>
-                                </InputAdornment>
-                            )
-                        }}
-                    />
-
-                    <StyledTextField name="confirmPassword" placeholder="Confirm Password" type="password" fullWidth required value={formData.confirmPassword}
-                        onChange={handleChange} InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <LockIcon sx={{ ml: 2, fontSize: 30 }} />
-                                </InputAdornment>)
-                        }}
-                    />
-
-                    <Button type="submit" variant="contained" color="success" disabled={loading}
-                        sx={{
-                            height: '72px',
-                            borderRadius: '50px',
-                            fontSize: '22px',
-                            fontWeight: 'bold',
-                            textTransform: 'none'
-                        }}
-                    >
-                        {loading ? <CircularProgress size={30} color="inherit" /> : 'Sign Up'}
-                    </Button>
-                </Stack>
-
-                <Typography color="#BDBDBD" mt={3} sx={{ fontSize: '18px' }}>
-                    Already have an account?{' '}
-                    <Link to="/login" style={{ color: '#81c784', fontWeight: 'bold', textDecoration: 'none' }}>
-                        Sign In
-                    </Link>
-                </Typography>
-            </Box>
-            <Box>
-
-            </Box>
-        </Box>
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+        <CircularProgress />
+        <Typography sx={{ ml: 2 }}>Đang tải dữ liệu mockup...</Typography>
+      </Box>
     );
+  }
+
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        backgroundImage: "url(/nen.png)",
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed'
+      }}
+    >
+      {/* Thanh AppBar */}
+      <AppBar position="sticky" elevation={1}
+        sx={{ background: "linear-gradient(to right, #97B067, #437057)", color: "white" }}>
+        <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
+          <Typography variant="h5" fontWeight="bold">GREE</Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Typography sx={{ display: { xs: 'none', sm: 'block' } }}>Người dùng Mockup</Typography>
+            <Avatar alt="Mock User" />
+            <IconButton color="inherit" onClick={handleClickMenu}>
+              <MenuIcon />
+            </IconButton>
+            <Menu anchorEl={anchorEl} open={openMenu} onClose={handleCloseMenu}>
+              <MenuItem onClick={handleLogout}>Đăng xuất</MenuItem>
+              <Divider />
+
+              {/* SỬA Ở ĐÂY */}
+              <MenuItem onClick={handleGoToSettings}>Cài Đặt</MenuItem>
+            </Menu>
+          </Box>
+        </Toolbar>
+      </AppBar>
+
+      {/* Nội dung chính */}
+      <Box component="main" sx={{ flexGrow: 1, p: { xs: 2, md: 3 }, overflowY: 'auto' }}>
+        <InfoCard>
+          <Stack spacing={2}>
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <HomeIcon fontSize="large" />
+              <Typography variant="h4" fontWeight={700}>{dashboardData.name}</Typography>
+            </Stack>
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <LocalFloristIcon />
+              <Typography variant="h6">{dashboardData.plant}</Typography>
+            </Stack>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Dot />
+              <Typography variant="h6">Trạng thái: {dashboardData.status}</Typography>
+            </Stack>
+            <Divider sx={{ opacity: .3, my: 1 }} />
+            <Box sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
+              gap: 2,
+            }}>
+              {dashboardData.metrics.map((m) => (
+                <Metric key={m.id} {...m} onClick={() => handleMetricClick(m)} />
+              ))}
+            </Box>
+          </Stack>
+        </InfoCard>
+
+        <Card sx={{ minWidth: 0, mt: 3 }}>
+          <Stack spacing={4}>
+            <Box>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                <NotificationsActiveIcon color="success" />
+                <Typography variant="h6" fontWeight="bold">Thông báo 24h</Typography>
+              </Stack>
+              <Box sx={{ maxHeight: 240, overflowY: "auto", pr: 1 }}>
+                <List dense>
+                  {dashboardData.notifications.map((n) => (
+                    <ListItem key={n.id} sx={{ mb: 1 }}>
+                      <ListItemIcon sx={{ minWidth: 36 }}>
+                        <WarningAmberIcon color={n.type === 'error' ? "error" : "warning"} />
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={<Typography fontWeight={500}>{n.message}</Typography>}
+                        secondary={<Typography variant="caption">{n.time}</Typography>}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              </Box>
+            </Box>
+
+            <Box>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+                <QueryStatsIcon color="success" />
+                <Typography variant="h6" fontWeight="bold">Biểu đồ thông số</Typography>
+              </Stack>
+              <Box sx={{ height: 300 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={dashboardData.chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="time" />
+                    <YAxis yAxisId="left" />
+                    <YAxis yAxisId="right" orientation="right" />
+                    <Tooltip />
+                    <Legend />
+                    <Line yAxisId="left" type="monotone" dataKey="nhietdokk" stroke="#FF7300" name="Nhiệt độ KK (°C)" />
+                    <Line yAxisId="left" type="monotone" dataKey="doamkk" stroke="#228B22" name="Độ ẩm KK (%)" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </Box>
+            </Box>
+          </Stack>
+        </Card>
+      </Box>
+
+      <StatusLevelModal
+        open={isStatusModalOpen}
+        onClose={handleCloseStatusModal}
+        metric={selectedMetric}
+        levels={METRIC_STATUS_LEVELS[selectedMetric?.label] || METRIC_STATUS_LEVELS['default']}
+      />
+    </Box>
+  );
 }
 
-export default SignUpPage;
+export default DashboardPage;
