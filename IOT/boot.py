@@ -3,9 +3,10 @@
 # co2 D6
 import network
 import time
+import config
 
-ssid = "UESA.HUSC"
-password = "44448888"
+ssid = config.WIFI_SSID
+password = config.WIFI_PASSWORD
 
 station = network.WLAN(network.STA_IF)
 station.active(True)
