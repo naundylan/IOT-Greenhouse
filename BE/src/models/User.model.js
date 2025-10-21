@@ -1,5 +1,4 @@
 import Joi from 'joi'
-import { verify } from 'jsonwebtoken'
 import { ObjectId } from 'mongodb'
 import { GET_DB } from '~/config/mongodb'
 import { EMAIL_RULE, PASSWORD_RULE, PHONE_RULE } from '~/utils/validator'

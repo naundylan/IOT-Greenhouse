@@ -6,7 +6,7 @@ import ApiError from '~/utils/ApiError'
 //Xác thực JWT accesstoken
 const isAuthorized = async (req, res, next) => {
   //Lấy access token từ phía clinet
-  const clinetAccessToken = req.cookies?.clinetAccessToken
+  const clinetAccessToken = req.cookies?.accessToken
 
   if (!clinetAccessToken) next(new ApiError(StatusCodes.UNAUTHORIZED, 'UNAUTHORIZED! (TOKEN IS NOT FOUND)'))
 
