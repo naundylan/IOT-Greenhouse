@@ -87,7 +87,7 @@ function ForgotPasswordPage() {
 
                 <Typography color="#BDBDBD" mt={3} sx={{ fontSize: '18px' }}>
                     <Link to="/login" style={{ color: '#81c784', fontWeight: 'bold', textDecoration: 'none' }}>
-                        &larr; Quay lại đăng nhập
+                        &larr; Back to Sign In
                     </Link>
                 </Typography>
             </Box>

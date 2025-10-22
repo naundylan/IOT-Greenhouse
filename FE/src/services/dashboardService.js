@@ -1,7 +1,7 @@
 // src/services/dashboardService.js
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8100/v1/user'; // Dùng đường dẫn tương đối để Vite Proxy hoạt động
+const API_URL = '/api/v1/dashboard'; // Dùng đường dẫn tương đối để Vite Proxy hoạt động
 
 const apiClient = axios.create({ baseURL: API_URL });
 
@@ -14,7 +14,7 @@ apiClient.interceptors.request.use((config) => {
 }, (error) => Promise.reject(error));
 
 export const getDashboardData = () => {
-    return apiClient.get('/dashboard');
+    return apiClient.get('/overview');
 };
 export const getMetrics = () => apiClient.get('/metrics');
 export const getNotifications = () => apiClient.get('/notifications');

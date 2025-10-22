@@ -19,6 +19,6 @@ app.get("/", (req, res) => {
   res.send("Proxy server is running...");
 });
 
-app.listen(8000, "0.0.0.0", () => {
+app.listen(8000, () => {
   console.log("Proxy running at http://0.0.0.0:8000");
 });

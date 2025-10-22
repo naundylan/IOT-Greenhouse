@@ -3,32 +3,33 @@ from machine import Pin, ADC, I2C, time_pulse_us
 import dht, bh1750, onewire, ds18x20
 from bh1750 import BH1750
 import time, urequests, gc
+import time
 
 # ===== CONFIG =====
-API_URL = "http://192.168.1.9:8000/api"
+API_URL = "http://10.195.75.117:8000/api"
+
 SAMPLES = 6
 MAX_ERROR_BEFORE_REPORT = 5
-WARMUP_SEC = 30   # demo: giảm xuống để test nhanh
+WARMUP_SEC = 30
 DEBUG = True
 
 # ===== LED =====
-led = Pin(2, Pin.OUT)
+led = Pin(2, Pin.OUT) #D4 GND 3V3
 led.value(1)
 
 # ===== SENSOR INIT =====
-soil_sensor = ADC(0)  # Soil moisture
+soil_sensor = ADC(0)  # Soil moisture D3 GND 3V3
 
-i2c = I2C(scl=Pin(5), sda=Pin(4), freq=400000)
+i2c = I2C(scl=Pin(5), sda=Pin(4), freq=400000) # pin5 = D1, pin4 = D2
 light_sensor = BH1750(i2c)
 
-dht22 = dht.DHT22(Pin(14))
+dht22 = dht.DHT22(Pin(14)) # D5 GND 3V3
 
-ds_pin = Pin(0)  # DS18B20
+ds_pin = Pin(0)  # DS18B20 A0 GND 3V3
 ds_sensor = ds18x20.DS18X20(onewire.OneWire(ds_pin))
 roms = ds_sensor.scan()
 
-pwm_pin = Pin(12, Pin.IN)  # MH-Z19B
-
+pwm_pin = Pin(12, Pin.IN)  # MH-Z19B D6 5V GND
 
 # ===== SHARE DATA =====
 data = {
@@ -42,7 +43,6 @@ data = {
 last_co2 = None
 error_count = 0
 
-
 # ===== HELPERS =====
 async def blink_led(times=1, duration=0.2):
     for _ in range(times):
@@ -50,7 +50,6 @@ async def blink_led(times=1, duration=0.2):
         await asyncio.sleep(duration)
         led.value(1)
         await asyncio.sleep(duration)
-
 
 def read_co2_pwm():
     try:
@@ -131,6 +130,13 @@ async def task_send_api():
     await asyncio.sleep(WARMUP_SEC)  # chờ sensor CO₂ warmup
     while True:
         try:
+            # tạo timestamp (giờ địa phương)
+            t = time.localtime()
+            timestamp = "{:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}".format(
+                t[0], t[1], t[2], t[3], t[4], t[5]
+            )
+            
+            data["timestamp"] = timestamp
             res = urequests.post(API_URL, json=data, headers={"Content-Type": "application/json"})
             print("Server:", res.status_code, res.text)
             res.close()
@@ -139,7 +145,7 @@ async def task_send_api():
             print("API error:", e)
             led.value(0)
         gc.collect()
-        await asyncio.sleep(10)
+        await asyncio.sleep(7)
 
 
 # ===== MAIN =====
@@ -160,3 +166,4 @@ try:
     asyncio.run(main())
 finally:
     asyncio.new_event_loop()
+

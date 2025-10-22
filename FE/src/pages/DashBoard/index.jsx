@@ -1,378 +1,270 @@
-// src/pages/DashboardPage.jsx
-import React, { useEffect, useState } from "react";
+// src/pages/DashBoard/index.jsx
+
+import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  AppBar, Avatar, Box, Card, CircularProgress, Divider, IconButton,
-  List, ListItem, ListItemIcon, ListItemText, Menu, MenuItem, Stack,
-  Switch, Toolbar, Typography
+    AppBar, Avatar, Box, Divider, List, ListItem,
+    ListItemIcon, ListItemText, Toolbar, Typography, Stack, IconButton,
+    CircularProgress, Alert, Menu, MenuItem
 } from "@mui/material";
-import MenuIcon from "@mui/icons-material/Menu";
 import HomeIcon from "@mui/icons-material/Home";
 import LocalFloristIcon from "@mui/icons-material/LocalFlorist";
 import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
+import MenuIcon from '@mui/icons-material/Menu';
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import QueryStatsIcon from "@mui/icons-material/QueryStats";
-import LightModeIcon from "@mui/icons-material/LightMode";
-import Dot from "@mui/icons-material/FiberManualRecord";
-import axios from "axios";
-import { useNavigate } from "react-router-dom";
-import {
-  LineChart, Line, CartesianGrid, XAxis, YAxis,
-  Tooltip, Legend, ResponsiveContainer
-} from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Card, InfoCard, Dot } from "../../components/StyledComponent"; 
+import Metric from "../../components/Metrics";
+import StatusLevelModal from "../../components/StatusLevelModal";
+import { getCurrentUser } from "../../services/authService";
+import { getDashboardData } from "../../services/dashboardService";
+
+
+// Dữ liệu giả cho các mức độ trạng thái vẫn được giữ lại
 const METRIC_STATUS_LEVELS = {
-  'CO₂': [
-    { level: 'Thấp', range: '< 400 ppm', description: 'Cây quang hợp chậm, cần bổ sung CO₂.', color: '#64b5f6' }, // blue
-    { level: 'Tối ưu', range: '800 - 1200 ppm', description: 'Mức độ lý tưởng cho sự phát triển của cây.', color: '#66bb6a' }, // green
-    { level: 'Cao', range: '1201 - 2000 ppm', description: 'Nồng độ cao, có thể không hiệu quả, cần thông gió.', color: '#ffa726' }, // orange
-    { level: 'Nguy hiểm', range: '> 2000 ppm', description: 'Nồng độ rất cao, có thể gây hại cho cây.', color: '#ef5350' } // red
-  ],
+    'CO₂': [
+        { level: 'Thấp', range: '< 400 ppm', description: 'Cây quang hợp chậm, cần bổ sung CO₂.', color: '#64b5f6' }, // blue
+        { level: 'Tối ưu', range: '800 - 1200 ppm', description: 'Mức độ lý tưởng cho sự phát triển của cây.', color: '#66bb6a' }, // green
+        { level: 'Cao', range: '1201 - 2000 ppm', description: 'Nồng độ cao, có thể không hiệu quả, cần thông gió.', color: '#ffa726' }, // orange
+        { level: 'Nguy hiểm', range: '> 2000 ppm', description: 'Nồng độ rất cao, có thể gây hại cho cây.', color: '#ef5350' } // red
+    ],
 
-  'Ánh sáng': [
-    { level: 'Lạnh', range: '< 18°C', description: 'Quá lạnh, cây phát triển chậm.', color: '#64b5f6' },
-    { level: 'Tối ưu', range: '22°C - 28°C', description: 'Nhiệt độ lý tưởng cho hầu hết các loại cây.', color: '#66bb6a' },
-    { level: 'Nóng', range: '> 30°C', description: 'Quá nóng, cây có thể bị stress nhiệt.', color: '#ef5350' }
-  ],
+    'Ánh sáng': [
+        { level: 'Lạnh', range: '< 18°C', description: 'Quá lạnh, cây phát triển chậm.', color: '#64b5f6' },
+        { level: 'Tối ưu', range: '22°C - 28°C', description: 'Nhiệt độ lý tưởng cho hầu hết các loại cây.', color: '#66bb6a' },
+        { level: 'Nóng', range: '> 30°C', description: 'Quá nóng, cây có thể bị stress nhiệt.', color: '#ef5350' }
+    ],
 
-  'Độ ẩm không khí': [
-    { level: 'Khô', range: '< 50%', description: 'Không khí khô, cây dễ mất nước.', color: '#ffa726' },
-    { level: 'Tối ưu', range: '60% - 75%', description: 'Độ ẩm phù hợp cho sự phát triển.', color: '#66bb6a' },
-    { level: 'Ẩm ướt', range: '> 85%', description: 'Độ ẩm cao, dễ gây nấm mốc và bệnh.', color: '#64b5f6' }
-  ],
+    'Độ ẩm không khí': [
+        { level: 'Khô', range: '< 50%', description: 'Không khí khô, cây dễ mất nước.', color: '#ffa726' },
+        { level: 'Tối ưu', range: '60% - 75%', description: 'Độ ẩm phù hợp cho sự phát triển.', color: '#66bb6a' },
+        { level: 'Ẩm ướt', range: '> 85%', description: 'Độ ẩm cao, dễ gây nấm mốc và bệnh.', color: '#64b5f6' }
+    ],
 
-  'Nhiệt độ không khí': [
-    { level: 'Lạnh', range: '< 18°C', description: 'Quá lạnh, cây phát triển chậm.', color: '#64b5f6' },
-    { level: 'Tối ưu', range: '22°C - 28°C', description: 'Nhiệt độ lý tưởng cho hầu hết các loại cây.', color: '#66bb6a' },
-  ],
+    'Nhiệt độ không khí': [
+        { level: 'Lạnh', range: '< 18°C', description: 'Quá lạnh, cây phát triển chậm.', color: '#64b5f6' },
+        { level: 'Tối ưu', range: '22°C - 28°C', description: 'Nhiệt độ lý tưởng cho hầu hết các loại cây.', color: '#66bb6a' },
+    ],
 
-  'Độ ẩm đất': [
-    { level: 'Khô', range: '< 40%', description: 'Đất quá khô, cần tưới nước.', color: '#ef5350' },
-    { level: 'Tối ưu', range: '50% - 70%', description: 'Độ ẩm đất phù hợp cho sự phát triển của cây.', color: '#66bb6a' },
-    { level: 'Ẩm ướt', range: '> 80%', description: 'Đất quá ẩm ', color: '#64b5f6' }
-  ],
+    'Độ ẩm đất': [
+        { level: 'Khô', range: '< 40%', description: 'Đất quá khô, cần tưới nước.', color: '#ef5350' },
+        { level: 'Tối ưu', range: '50% - 70%', description: 'Độ ẩm đất phù hợp cho sự phát triển của cây.', color: '#66bb6a' },
+        { level: 'Ẩm ướt', range: '> 80%', description: 'Đất quá ẩm ', color: '#64b5f6' }
+    ],
 
-  'Nhiệt độ đất': [
-    { level: 'Lạnh', range: '< 18°C', description: 'Quá lạnh, cây phát triển chậm.', color: '#64b5f6' },
-    { level: 'Tối ưu', range: '22°C - 28°C', description: 'Nhiệt độ lý tưởng cho hầu hết các loại cây.', color: '#66bb6a' },
-  ],
-  'default': [
-    { level: 'Bình thường', range: 'N/A', description: 'Thông số trong ngưỡng an toàn.', color: '#66bb6a' }
-  ]
-};
-const mockDashboardData = {
-  id: 1,
-  name: "Nhà kính số 1 - Khu A",
-  plant: "Xà Lách 4 Mùa",
-  status: "Tốt",
-  metrics: [
-    { id: 1, label: "CO₂", value: "1100 ppm" },
-    { id: 2, label: "Ánh sáng", value: "6000 lux" },
-    { id: 3, label: "Nhiệt độ không khí", value: "28°C" },
-    { id: 4, label: "Độ ẩm không khí", value: "65%" },
-    { id: 5, label: "Độ ẩm đất", value: "60%" },
-    { id: 6, label: "Nhiệt độ đất", value: "25°C" },
-  ],
-  lightStatus: false,
-  notifications: [
-    { id: 1, type: "error", message: "Nhiệt độ không khí vượt ngưỡng 32°C lúc 14:20", time: "2 giờ trước" },
-    { id: 2, type: "warning", message: "Độ ẩm đất giảm xuống 45% lúc 13:15", time: "3 giờ trước" },
-    { id: 3, type: "warning", message: "Ánh sáng đạt 1200 lux lúc 12:30", time: "4 giờ trước" },
-  ],
-  chartData: [
-    { time: "02:00", co2: 30, nhietdokk: 28, nhietdod: 25, anhsang: 2000, doamkk: 65, doamdat: 60 },
-    { time: "06:00", co2: 35, nhietdokk: 30, nhietdod: 26, anhsang: 4000, doamkk: 67, doamdat: 62 },
-    { time: "10:00", co2: 40, nhietdokk: 32, nhietdod: 27, anhsang: 8000, doamkk: 68, doamdat: 63 },
-    { time: "14:00", co2: 45, nhietdokk: 33, nhietdod: 28, anhsang: 9500, doamkk: 69, doamdat: 64 },
-    { time: "18:00", co2: 40, nhietdokk: 31, nhietdod: 26, anhsang: 3000, doamkk: 70, doamdat: 61 },
-    { time: "22:00", co2: 35, nhietdokk: 29, nhietdod: 25, anhsang: 1500, doamkk: 66, doamdat: 59 },
-  ],
+    'Nhiệt độ đất': [
+        { level: 'Lạnh', range: '< 18°C', description: 'Quá lạnh, cây phát triển chậm.', color: '#64b5f6' },
+        { level: 'Tối ưu', range: '22°C - 28°C', description: 'Nhiệt độ lý tưởng cho hầu hết các loại cây.', color: '#66bb6a' },
+    ],
+    'default': [
+        { level: 'Bình thường', range: 'N/A', description: 'Thông số trong ngưỡng an toàn.', color: '#66bb6a' }
+    ]
 };
 
 function DashboardPage() {
-  const [dashboardData, setDashboardData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [isSwitchLoading, setIsSwitchLoading] = useState(false);
-  const openMenu = Boolean(anchorEl);
-  const navigate = useNavigate();
+    const navigate = useNavigate();
+    const [user, setUser] = useState(null);
+    const [dashboardData, setDashboardData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [anchorEl, setAnchorEl] = useState(null);
+    const open = Boolean(anchorEl);
 
-  // 🧩 Giả lập tải dữ liệu mockup
-  useEffect(() => {
-    console.warn("📊 Dashboard đang chạy ở chế độ MOCKUP.");
-    const timer = setTimeout(() => {
-      setDashboardData(mockDashboardData);
-      setLoading(false);
-    }, 800);
-    return () => clearTimeout(timer);
-  }, []);
+    // BƯỚC 4: Kích hoạt lại state `error`
+    const [error, setError] = useState(null);
 
-  // 🔧 Handler Menu
-  const handleClickMenu = (event) => setAnchorEl(event.currentTarget);
-  const handleCloseMenu = () => setAnchorEl(null);
-  const handleGoToSettings = () => {
-    navigate("/settings");
-    handleCloseMenu();
-  };
-  const handleLogout = () => {
-    navigate("/login");
-    handleCloseMenu();
-  };
+    const handleClick = (event) => setAnchorEl(event.currentTarget);
+    const handleClose = () => setAnchorEl(null);
 
-  // 💡 Bật/Tắt đèn
-  const handleToggleLight = async () => {
-    if (!dashboardData) return;
-    const newStatus = !dashboardData.lightStatus;
-    setIsSwitchLoading(true);
+    const handleLogout = useCallback(() => {
+        localStorage.removeItem('userToken');
+        navigate('/login');
+    }, [navigate]);
 
-    try {
-      // Giả lập API
-      await axios.patch(`/api/greenhouses/${dashboardData.id}/light`, { status: newStatus });
-      // Update local state
-      setDashboardData((prev) => ({ ...prev, lightStatus: newStatus }));
-    } catch (err) {
-      console.error("⚠️ Lỗi khi đổi trạng thái đèn:", err);
-    } finally {
-      setIsSwitchLoading(false);
+    const handleSetting = useCallback(() => {
+        // Sửa lại đường dẫn cho đúng
+        navigate('/setting'); 
+    }, [navigate]);
+
+    // BƯỚC 2: Kích hoạt lại useEffect gọi API
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                setError(null);
+                const [userResponse, dashboardResponse] = await Promise.all([
+                    getCurrentUser(),
+                    getDashboardData()
+                ]);
+                setUser(userResponse.data);
+                setDashboardData(dashboardResponse.data);
+            } catch (err) {
+                console.error("Lỗi khi tải dữ liệu:", err);
+                if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+                    alert("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+                    handleLogout();
+                } else {
+                    setError("Không thể kết nối đến máy chủ. Vui lòng thử lại sau.");
+                }
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
+    }, [handleLogout]);
+
+    // Logic mở/đóng modal giữ nguyên
+    const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+    const [selectedMetric, setSelectedMetric] = useState(null);
+    const handleMetricClick = (metric) => {
+        setSelectedMetric(metric);
+        setIsStatusModalOpen(true);
+    };
+    const handleCloseStatusModal = () => {
+        setIsStatusModalOpen(false);
+    };
+
+    if (loading) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', flexDirection: 'column', gap: 2 }}>
+                <CircularProgress />
+                <Typography>Đang tải dữ liệu từ máy chủ...</Typography>
+            </Box>
+        );
     }
-  };
-  const handleToggleFan = async () => {
-    if (!dashboardData) return;
-    const newStatus = !dashboardData.lightStatus;
-    setIsSwitchLoading(true);
 
-    try {
-      // Giả lập API
-      await axios.patch(`/api/greenhouses/${dashboardData.id}/light`, { status: newStatus });
-      // Update local state
-      setDashboardData((prev) => ({ ...prev, lightStatus: newStatus }));
-    } catch (err) {
-      console.error("⚠️ Lỗi khi đổi trạng thái đèn:", err);
-    } finally {
-      setIsSwitchLoading(false);
+    // Kích hoạt lại màn hình lỗi
+    if (error) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+                <Alert severity="error">{error}</Alert>
+            </Box>
+        );
     }
-  };
 
-  if (loading) {
     return (
-      <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
-        <CircularProgress />
-        <Typography sx={{ ml: 2 }}>Đang tải dữ liệu mockup...</Typography>
-      </Box>
+        <Box sx={{
+            height: "100vh",
+            width: "100%",
+            display: "flex",
+            flexDirection: "column",
+            backgroundImage: "url(/nen.png)",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundAttachment: "fixed",
+        }}>
+            <AppBar position="sticky" elevation={0} sx={{ background: "linear-gradient(to right, #97B067, #437057)", color: "white" }}>
+                <Toolbar sx={{ display: "flex", justifyContent: "space-between" }}>
+                    <Typography variant="h5" fontWeight="bold">GREENHOUSE</Typography>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                        <Typography sx={{ display: { xs: 'none', sm: 'block' } }}>{user?.name}</Typography>
+                        <Avatar alt={user?.name} src={user?.avatarUrl} />
+                        <IconButton color="inherit" onClick={handleClick}>
+                            <MenuIcon />
+                        </IconButton>
+                        <Menu anchorEl={anchorEl} open={open} onClose={handleClose}>
+                            <MenuItem onClick={handleSetting}>Cài Đặt</MenuItem>
+                            <MenuItem onClick={handleLogout}>Đăng xuất</MenuItem>
+                        </Menu>
+                    </Box>
+                </Toolbar>
+            </AppBar>
+
+            <Box sx={{ flex: 1, overflowY: 'auto', p: { xs: 2, md: 3 } }}>
+                <Box sx={{
+                    display: "grid",
+                    gridTemplateColumns: { xs: "1fr", lg: '1.5fr 1fr' },
+                    gap: 3,
+                    alignItems: "start",
+                }}>
+                    <InfoCard>
+                        <Stack spacing={2}>
+                            <Stack direction="row" spacing={1.5} alignItems="center">
+                                <HomeIcon fontSize="large" />
+                                {/* BƯỚC 3: Sửa lại để dùng state `dashboardData` */}
+                                <Typography variant="h4" fontWeight={700}>{dashboardData?.name}</Typography>
+                            </Stack>
+                            <Stack direction="row" spacing={1.5} alignItems="center">
+                                <LocalFloristIcon />
+                                <Typography variant="h6">{dashboardData?.plant}</Typography>
+                            </Stack>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                                <Dot />
+                                <Typography variant="h6">Trạng thái: {dashboardData?.status}</Typography>
+                            </Stack>
+                            <Divider sx={{ opacity: .3, my: 1 }} />
+                            <Box sx={{
+                                display: "grid",
+                                gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
+                                gap: 2,
+                            }}>
+                                {dashboardData?.metrics?.map((m) => (
+                                    <Metric key={m.id} {...m} onClick={() => handleMetricClick(m)} />
+                                ))}
+                            </Box>
+                        </Stack>
+                    </InfoCard>
+
+                    <Card sx={{ minWidth: 0 }}>
+                        <Stack spacing={4}>
+                            <Box>
+                                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                                    <NotificationsActiveIcon color="success" />
+                                    <Typography variant="h6" fontWeight="bold">Thông báo 24h</Typography>
+                                </Stack>
+                                <Box sx={{ maxHeight: 240, overflowY: "auto", pr: 1 }}>
+                                    <List dense>
+                                        {dashboardData?.notifications?.map((n) => (
+                                            <ListItem key={n.id} sx={{ mb: 1 }}>
+                                                <ListItemIcon sx={{ minWidth: 36 }}>
+                                                    <WarningAmberIcon color={n.type === 'error' ? "error" : "warning"} />
+                                                </ListItemIcon>
+                                                <ListItemText
+                                                    primary={<Typography fontWeight={500}>{n.message}</Typography>}
+                                                    secondary={<Typography variant="caption">{n.time}</Typography>}
+                                                />
+                                            </ListItem>
+                                        ))}
+                                    </List>
+                                </Box>
+                            </Box>
+
+                            <Box>
+                                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+                                    <QueryStatsIcon color="success" />
+                                    <Typography variant="h6" fontWeight="bold">Biểu đồ thông số</Typography>
+                                </Stack>
+                                <Box sx={{ height: 300 }}>
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart data={dashboardData?.chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="time" />
+                                            <YAxis />
+                                            <Tooltip />
+                                            <Legend />
+                                            <Line type="monotone" dataKey="nhietdodat" stroke="#8B4513" name="Nhiệt độ đất (°C)" />
+                                            <Line type="monotone" dataKey="doamdat" stroke="#1E90FF" name="Độ ẩm đất (%)" />
+                                            <Line type="monotone" dataKey="nhietdokk" stroke="#FF7300" name="Nhiệt độ KK (°C)" />
+                                            <Line type="monotone" dataKey="doamkk" stroke="#228B22" name="Độ ẩm KK (%)" />
+                                            <Line yAxisId="right" type="monotone" dataKey="anhsang" stroke="#FFD700" name="Ánh sáng (lux)" />
+                                            <Line yAxisId="right" type="monotone" dataKey="co2" stroke="#800080" name="CO₂ (ppm)" />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </Box>
+                            </Box>
+                        </Stack>
+                    </Card>
+                </Box>
+            </Box>
+
+            <StatusLevelModal
+                open={isStatusModalOpen}
+                onClose={handleCloseStatusModal}
+                metric={selectedMetric}
+                levels={METRIC_STATUS_LEVELS[selectedMetric?.label] || METRIC_STATUS_LEVELS['default']}
+            />
+        </Box>
     );
-  }
-
-  return (
-    <Box
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100vh",
-        backgroundImage: "url(/nen.png)",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundAttachment: "fixed",
-      }}
-    >
-      {/* ✅ Thanh AppBar */}
-      <AppBar
-        position="sticky"
-        elevation={1}
-        sx={{ background: "linear-gradient(to right, #6d8c33ff, #184d1bff)", color: "white" }}
-      >
-        <Toolbar sx={{ display: "flex", justifyContent: "space-between" }}>
-          <Typography variant="h5" fontWeight="bold">
-            GREEHOUSE
-          </Typography>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <Typography sx={{ display: { xs: "none", sm: "block" } }}>USERNAME</Typography>
-            <Avatar />
-            <IconButton color="inherit" onClick={handleClickMenu}>
-              <MenuIcon />
-            </IconButton>
-            <Menu anchorEl={anchorEl} open={openMenu} onClose={handleCloseMenu}>
-              <MenuItem onClick={handleLogout}>Đăng xuất</MenuItem>
-              <Divider />
-              <MenuItem onClick={handleGoToSettings}>Cài Đặt</MenuItem>
-            </Menu>
-          </Box>
-        </Toolbar>
-      </AppBar>
-
-      {/* ✅ Nội dung hai cột */}
-      <Box
-        sx={{
-          flexGrow: 1,
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "2fr 1fr" },
-          gap: 2,
-          p: { xs: 2, md: 3 },
-          overflowY: "auto",
-        }}
-      >
-        {/* 🌱 Cột trái: Thông tin nhà kính */}
-        <Card
-          sx={{
-            p: 3,
-            borderRadius: 6,
-            background: "linear-gradient(to bottom right, #184d1bff, #49b74fff)",
-            color: "white",
-          }}
-        >
-          <Stack spacing={2}>
-            <Stack direction="row" spacing={1.5} alignItems="center">
-              <HomeIcon />
-              <Typography variant="h5" fontWeight="bold">
-                {dashboardData.name}
-              </Typography>
-            </Stack>
-            <Stack direction="row" spacing={1.5} alignItems="center">
-              <LocalFloristIcon />
-              <Typography variant="h6">{dashboardData.plant}</Typography>
-            </Stack>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Dot sx={{ color: "lightgreen" }} />
-              <Typography variant="h6">Trạng thái: {dashboardData.status}</Typography>
-            </Stack>
-
-            <Divider sx={{ opacity: 0.3 }} />
-
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
-                gap: 2,
-              }}
-            >
-              {dashboardData.metrics.map((m) => (
-                <Card
-                  key={m.id}
-                  sx={{
-                    p: 5,
-                    textAlign: "center",
-                    borderRadius: 6,
-                    background: "rgba(255, 255, 255, 0.93)",
-                    color: "#333",
-                  }}
-                >
-                  <Typography variant="caption" sx={{ opacity: 0.8, color: '#2e7d32' }}>
-                    {m.label}
-                  </Typography>
-                  <Typography variant="h6" sx={{ color: "#2e7d32", lineHeight: 1.2, fontWeight: 'bold' }}>
-                    {m.value}
-                  </Typography>
-                </Card>
-              ))}
-            </Box>
-
-            {/* 💡 Bật/Tắt đèn */}
-            <Card
-              sx={{
-                mt: 2,
-                p: 5,
-                borderRadius: 6,
-                background: "rgba(255,255,255,0.85)",
-                color: "#2E5F40",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <Stack direction="row" spacing={2} alignItems="center">
-                <LightModeIcon />
-                <Typography fontWeight="bold">
-                  Bóng Đèn
-                </Typography>
-              </Stack>
-
-              <Switch
-                checked={dashboardData.lightStatus}
-                onChange={handleToggleLight}
-                disabled={isSwitchLoading}
-              />
-            </Card>
-           {/* 💡 Bật/Tắt quạt */}
-            <Card
-              sx={{
-                mt: 2,
-                p: 5,
-                borderRadius: 6,
-                background: "rgba(255,255,255,0.85)",
-                color: "#2E5F40",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <Stack direction="row" spacing={2} alignItems="center">
-                <LightModeIcon />
-                <Typography fontWeight="bold">
-                  Quạt
-                </Typography>
-              </Stack>
-
-              <Switch
-                checked={dashboardData.fanStatus}
-                onChange={handleToggleFan}
-                disabled={isSwitchLoading}
-              />
-            </Card>
-          </Stack>
-        </Card>
-
-        {/* 📊 Cột phải: Thông báo + Biểu đồ */}
-        <Card sx={{ p: 3, borderRadius: 3, background: "rgba(255,255,255,0.9)" }}>
-          <Stack spacing={4}>
-            <Box>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                <NotificationsActiveIcon color="success" />
-                <Typography variant="h6" fontWeight="bold">
-                  Thông báo trong 24h
-                </Typography>
-              </Stack>
-              <List dense>
-                {dashboardData.notifications.map((n) => (
-                  <ListItem key={n.id} sx={{ mb: 1 }}>
-                    <ListItemIcon sx={{ minWidth: 36 }}>
-                      <WarningAmberIcon
-                        color={n.type === "error" ? "error" : "warning"}
-                      />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={<Typography fontWeight={500}>{n.message}</Typography>}
-                      secondary={<Typography variant="caption">{n.time}</Typography>}
-                    />
-                  </ListItem>
-                ))}
-              </List>
-            </Box>
-
-            <Box>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
-                <QueryStatsIcon color="success" />
-                <Typography variant="h6" fontWeight="bold">
-                  Biểu đồ thông số
-                </Typography>
-              </Stack>
-              <Box sx={{ height: 300 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={dashboardData.chartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="time" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line type="monotone" dataKey="nhietdokk" stroke="#FF7300" name="Nhiệt độ KK (°C)" />
-                    <Line type="monotone" dataKey="doamkk" stroke="#228B22" name="Độ ẩm KK (%)" />
-                    <Line type="monotone" dataKey="anhsang" stroke="#E4C600" name="Ánh sáng (lux)" />
-                    <Line type="monotone" dataKey="doamdat" stroke="#4B8BBE" name="Độ ẩm đất (%)" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </Box>
-            </Box>
-          </Stack>
-        </Card>
-      </Box>
-    </Box>
-  );
 }
 
 export default DashboardPage;
