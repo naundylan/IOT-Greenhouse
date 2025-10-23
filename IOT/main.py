@@ -3,15 +3,31 @@ from machine import Pin, ADC, I2C, time_pulse_us
 import dht, bh1750, onewire, ds18x20
 from bh1750 import BH1750
 import time, urequests, gc
-import time
+import config
+
+# ==== MQTT (LOCAL, không TLS) ====
+try:
+    from umqtt.robust import MQTTClient
+except ImportError:
+    raise
+
+try:
+    import ujson as json
+except:
+    import json
+import ntptime
 
 # ===== CONFIG =====
-API_URL = "http://10.195.75.117:8000/api"
-
-SAMPLES = 6
-MAX_ERROR_BEFORE_REPORT = 5
-WARMUP_SEC = 30
-DEBUG = True
+API_URL = config.API_URL
+SAMPLES = config.SAMPLES
+MAX_ERROR_BEFORE_REPORT = config.MAX_ERROR_BEFORE_REPORT
+WARMUP_SEC = config.WARMUP_SEC
+DEBUG = config.DEBUG
+MQTT_BROKER = config.MQTT_BROKER
+MQTT_CLIENT_ID = config.MQTT_CLIENT_ID
+PORT = config.PORT
+MQTT_TOPIC_PUB = config.MQTT_TOPIC_PUB
+MQTT_TOPIC_SUB = config.MQTT_TOPIC_SUB
 
 # ===== LED =====
 led = Pin(2, Pin.OUT) #D4 GND 3V3
@@ -35,13 +51,14 @@ pwm_pin = Pin(12, Pin.IN)  # MH-Z19B D6 5V GND
 data = {
     "soil_temperature": None,
     "soil_moisture": None,
-    "air_temperature": None,
-    "air_humidity": None,
+    #"air_temperature": None,
+    #"air_humidity": None,
     "light": None,
     "co2": None,
 }
 last_co2 = None
 error_count = 0
+
 
 # ===== HELPERS =====
 async def blink_led(times=1, duration=0.2):
@@ -68,6 +85,77 @@ def read_co2_pwm():
     return int(co2) if 0 < co2 < 5000 else None
 
 
+_mqtt = None
+
+def _on_cmd(topic, msg):
+    try:
+        if DEBUG: print("[CMD]", topic, msg)
+        obj = json.loads(msg)
+        # ví dụ lệnh đơn giản: {"led":1} -> bật LED
+        if obj.get("led") is not None:
+            led.value(0 if obj["led"] else 1)
+    except Exception as e:
+        if DEBUG: print("cmd parse err:", e)
+
+def mqtt_connect():
+    # # gọi được nhiều lần, sẽ đóng kết nối cũ nếu có
+    global _mqtt
+    try:
+        if _mqtt:
+            try: _mqtt.disconnect()
+            except: pass
+        _mqtt = MQTTClient(
+            client_id=MQTT_CLIENT_ID,
+            server=MQTT_BROKER,
+            port=PORT,
+            keepalive=60,
+            ssl=False  # # dùng LAN, không TLS
+        )
+        _mqtt.set_callback(_on_cmd)
+        _mqtt.connect()
+        _mqtt.subscribe(MQTT_TOPIC_SUB.encode())
+        if DEBUG: print("MQTT connected -> PUB:", MQTT_TOPIC_PUB, "| SUB:", MQTT_TOPIC_SUB)
+    except Exception as e:
+        if DEBUG: print("MQTT connect error:", e)
+        _mqtt = None
+
+def mqtt_loop_step():
+    # # gọi thường xuyên để nhận lệnh & tự chữa lỗi nhẹ
+    global _mqtt
+    if _mqtt is None:
+        mqtt_connect(); return
+    try:
+        _mqtt.check_msg()  # non-blocking
+    except Exception as e:
+        if DEBUG: print("check_msg err:", e)
+        try:
+            _mqtt.reconnect()
+            _mqtt.subscribe(MQTT_TOPIC_SUB.encode())
+        except Exception as e2:
+            if DEBUG: print("reconnect fail:", e2)
+            _mqtt = None
+
+def mqtt_publish(payload_dict):
+    global _mqtt
+    if _mqtt is None:
+        mqtt_connect()
+        if _mqtt is None:
+            return False
+    try:
+        _mqtt.publish(MQTT_TOPIC_PUB.encode(), json.dumps(payload_dict))
+        return True
+    except Exception as e:
+        if DEBUG: print("publish err:", e)
+        try:
+            _mqtt.reconnect()
+            _mqtt.subscribe(MQTT_TOPIC_SUB.encode())
+            _mqtt.publish(MQTT_TOPIC_PUB.encode(), json.dumps(payload_dict))
+            return True
+        except Exception as e2:
+            if DEBUG: print("repub fail:", e2)
+            _mqtt = None
+            return False
+
 # ===== TASKS =====
 async def task_soil_temp():
     while True:
@@ -85,15 +173,15 @@ async def task_soil_moist():
         await asyncio.sleep(3)
 
 
-async def task_air():
-    while True:
-        try:
-            dht22.measure()
-            data["air_temperature"] = dht22.temperature()
-            data["air_humidity"] = dht22.humidity()
-        except Exception as e:
-            if DEBUG: print("DHT22 error:", e)
-        await asyncio.sleep(4)
+# async def task_air():
+#     while True:
+#         try:
+#             dht22.measure()
+#             data["air_temperature"] = dht22.temperature()
+#             data["air_humidity"] = dht22.humidity()
+#         except Exception as e:
+#             if DEBUG: print("DHT22 error:", e)
+#         await asyncio.sleep(4)
 
 
 async def task_light():
@@ -124,40 +212,63 @@ async def task_co2():
                 if DEBUG: print("CO₂ sensor error")
                 error_count = 0
         await asyncio.sleep(6)
+# đồng bộ NTP trước khi publish
+async def task_ntp_sync():
+    host = config.NTP_HOST 
+    ntptime.host = host
+    for _ in range(5):  # thử 5 lần, mỗi lần cách nhau 3s
+        try:
+            ntptime.settime()  # UTC
+            if DEBUG: print("NTP synced:", time.gmtime())
+            return True
+        except Exception as e:
+            if DEBUG: print("# NTP fail:", e)
+        await asyncio.sleep(3)
+    if DEBUG: print("# NTP not synced, will retry later")
+    return False
 
 
-async def task_send_api():
-    await asyncio.sleep(WARMUP_SEC)  # chờ sensor CO₂ warmup
+# ==== task gửi MQTT  ====
+# trong task_send_mqtt, đảm bảo chỉ format thời gian khi RTC đã hợp lệ
+async def task_send_mqtt():
+    await asyncio.sleep(WARMUP_SEC)
     while True:
         try:
-            # tạo timestamp (giờ địa phương)
-            t = time.localtime()
-            timestamp = "{:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}".format(
-                t[0], t[1], t[2], t[3], t[4], t[5]
-            )
-            
-            data["timestamp"] = timestamp
-            res = urequests.post(API_URL, json=data, headers={"Content-Type": "application/json"})
-            print("Server:", res.status_code, res.text)
-            res.close()
-            await blink_led(1)
+            # # nếu chưa sync thì sync NTP
+            if time.gmtime()[0] < 2024:
+                await task_ntp_sync()
+
+            payload = dict(data)  # # tạo payload từ data
+
+            # # chỉ dùng giờ địa phương VN (UTC+7) và GÁN vào "time"
+            secs = time.time() + 7*3600
+            lt = time.gmtime(secs)
+            local_iso = "%04d-%02d-%02dT%02d:%02d:%02d" % lt[:6]
+            payload["time"] = local_iso 
+
+            ok = mqtt_publish(payload)
+            if DEBUG: print("MQTT PUB:", ok, payload)
+            mqtt_loop_step()
         except Exception as e:
-            print("API error:", e)
-            led.value(0)
+            if DEBUG: print("MQTT task error:", e)
         gc.collect()
         await asyncio.sleep(7)
 
 
+
 # ===== MAIN =====
 async def main():
+    mqtt_connect()  
     # Chạy tất cả task song song
+    await task_ntp_sync()
     await asyncio.gather(
         task_soil_temp(),
         task_soil_moist(),
-        task_air(),
+#         task_air(),
         task_light(),
         task_co2(),
-        task_send_api(),
+#         task_send_api(),
+        task_send_mqtt()
     )
 
 

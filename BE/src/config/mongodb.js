@@ -1,5 +1,7 @@
 import { MongoClient, ServerApiVersion } from 'mongodb'
 import { env } from '~/config/environment'
+import { sensorModel } from '~/models/Sensor.model'
+import { sensorDataModel } from '~/models/SensorData.model'
 
 let nckhDatabaseInstance = null
 
@@ -15,6 +17,9 @@ export const CONNECT_DB = async() => {
   await mongoClientInstance.connect()
 
   nckhDatabaseInstance = mongoClientInstance.db(env.DATABASE_NAME)
+
+  await sensorModel.ensureSensorIndex()
+  await sensorDataModel.ensureSensorDataIndex()
 }
 
 export const CLOSE_DB = async() => {

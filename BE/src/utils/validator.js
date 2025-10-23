@@ -18,3 +18,5 @@ export const PHONE_RULE_MESSAGE = 'Phone number is invalid.'
 export const LIMIT_COMMON_FILE__SIZE = 10485760 //10 * 1024 * 1024 // 10MB
 export const ALLOWED_COMMON_FILE_TYPES = ['image/jpeg', 'image/jpg', 'image/png']
 
+export const DEVICE_ID = 'Device ID is required.'
+export const DEVICE_NAME = 'Device Name is required.'
