@@ -23,7 +23,7 @@ export const initializeMqttListener = async () => {
           console.warn(`[MQTT] Topic không hợp lệ: ${topic}`)
           return
         }
-        const deviceId = topicParts[1] 
+        const deviceId = topicParts[1]
 
         // Parse JSON
         let data

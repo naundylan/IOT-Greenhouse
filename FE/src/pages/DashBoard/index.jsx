@@ -19,6 +19,13 @@ import {
   LineChart, Line, CartesianGrid, XAxis, YAxis,
   Tooltip, Legend, ResponsiveContainer
 } from "recharts";
+import {
+  Dialog, DialogTitle, DialogContent, DialogActions, Button
+} from "@mui/material";
+
+
+
+
 const METRIC_STATUS_LEVELS = {
   'CO₂': [
     { level: 'Thấp', range: '< 400 ppm', description: 'Cây quang hợp chậm, cần bổ sung CO₂.', color: '#64b5f6' }, // blue
@@ -72,6 +79,7 @@ const mockDashboardData = {
     { id: 6, label: "Nhiệt độ đất", value: "25°C" },
   ],
   lightStatus: false,
+  fanStatus: false,
   notifications: [
     { id: 1, type: "error", message: "Nhiệt độ không khí vượt ngưỡng 32°C lúc 14:20", time: "2 giờ trước" },
     { id: 2, type: "warning", message: "Độ ẩm đất giảm xuống 45% lúc 13:15", time: "3 giờ trước" },
@@ -104,6 +112,17 @@ function DashboardPage() {
     }, 800);
     return () => clearTimeout(timer);
   }, []);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [selectedMetric, setSelectedMetric] = useState(null);
+  const handleOpenMetricDetail = (metric) => {
+    setSelectedMetric(metric);
+    setOpenDialog(true);
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    setSelectedMetric(null);
+  };
 
   // 🔧 Handler Menu
   const handleClickMenu = (event) => setAnchorEl(event.currentTarget);
@@ -251,7 +270,11 @@ function DashboardPage() {
                     borderRadius: 6,
                     background: "rgba(255, 255, 255, 0.93)",
                     color: "#333",
+                    cursor: "pointer",
+                    transition: "0.2s",
+                    "&:hover": { transform: "scale(1.05)", boxShadow: 6 },
                   }}
+                  onClick={() => handleOpenMetricDetail(m)}
                 >
                   <Typography variant="caption" sx={{ opacity: 0.8, color: '#2e7d32' }}>
                     {m.label}
@@ -289,7 +312,7 @@ function DashboardPage() {
                 disabled={isSwitchLoading}
               />
             </Card>
-           {/* 💡 Bật/Tắt quạt */}
+            {/* 💡 Bật/Tắt quạt */}
             <Card
               sx={{
                 mt: 2,
@@ -355,15 +378,36 @@ function DashboardPage() {
               <Box sx={{ height: 300 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={dashboardData.chartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#ccc" />
                     <XAxis dataKey="time" />
-                    <YAxis />
+
+                    {/* Trục Y trái */}
+                    <YAxis
+                      yAxisId="left"
+                      orientation="left"
+                      stroke="#8884d8"
+                      domain={[0, 100]} // Giới hạn để nhìn rõ
+                    />
+                    {/* Trục Y phải */}
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      stroke="#82ca9d"
+                      domain={[0, 2000]} // cho CO2, ánh sáng
+                    />
+
                     <Tooltip />
                     <Legend />
-                    <Line type="monotone" dataKey="nhietdokk" stroke="#FF7300" name="Nhiệt độ KK (°C)" />
-                    <Line type="monotone" dataKey="doamkk" stroke="#228B22" name="Độ ẩm KK (%)" />
-                    <Line type="monotone" dataKey="anhsang" stroke="#E4C600" name="Ánh sáng (lux)" />
-                    <Line type="monotone" dataKey="doamdat" stroke="#4B8BBE" name="Độ ẩm đất (%)" />
+
+                    {/* Các đường dùng trục trái */}
+                    <Line yAxisId="left" type="monotone" dataKey="nhietdokk" stroke="#FF7300" name="Nhiệt độ KK (°C)" dot={false} />
+                    <Line yAxisId="left" type="monotone" dataKey="doamkk" stroke="#228B22" name="Độ ẩm KK (%)" dot={false} />
+                    <Line yAxisId="left" type="monotone" dataKey="doamdat" stroke="#4B8BBE" name="Độ ẩm đất (%)" dot={false} />
+                    <Line yAxisId="left" type="monotone" dataKey="nhietdod" stroke="#8884d8" name="Nhiệt độ đất (°C)" dot={false} />
+
+                    {/* Các đường dùng trục phải */}
+                    <Line yAxisId="right" type="monotone" dataKey="anhsang" stroke="#E4C600" name="Ánh sáng (lux)" dot={false} />
+                    <Line yAxisId="right" type="monotone" dataKey="co2" stroke="#82ca9d" name="CO₂ (ppm)" dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </Box>
@@ -371,6 +415,48 @@ function DashboardPage() {
           </Stack>
         </Card>
       </Box>
+      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: "bold", color: "#2e7d32" }}>
+          {selectedMetric?.label}
+        </DialogTitle>
+        <DialogContent dividers>
+          {selectedMetric && (
+            <>
+              {(
+                METRIC_STATUS_LEVELS[selectedMetric.label] ||
+                METRIC_STATUS_LEVELS["default"]
+              ).map((level, idx) => (
+                <Card
+                  key={idx}
+                  sx={{
+                    mb: 2,
+                    p: 2,
+                    background: level.color + "20", // màu mờ nhạt
+                    borderLeft: `6px solid ${level.color}`,
+                    borderRadius: 2,
+                  }}
+                >
+                  <Typography variant="subtitle1" fontWeight="bold" sx={{ color: level.color }}>
+                    {level.level}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: "#333" }}>
+                    Khoảng giá trị: {level.range}
+                  </Typography>
+                  <Typography variant="body2" sx={{ opacity: 0.8 }}>
+                    {level.description}
+                  </Typography>
+                </Card>
+              ))}
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog} variant="contained" sx={{ bgcolor: "#2e7d32" }}>
+            Đóng
+          </Button>
+        </DialogActions>
+      </Dialog>
+
     </Box>
   );
 }
