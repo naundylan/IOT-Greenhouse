@@ -1,5 +1,5 @@
 import { StatusCodes } from 'http-status-codes'
-import { sensorService } from '~/services/Sensor.service'
+import { sensorService } from '~/services/sensor.service'
 
 const registerDevice = async (req, res, next) => {
   try {

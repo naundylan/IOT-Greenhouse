@@ -5,7 +5,7 @@ import { GET_DB } from '~/config/mongodb'
 const SENSOR_DATA_COLLECTION_NAME = 'sensor_data'
 const SENSOR_DATA_COLLECTION_SCHEMA = Joi.object({
   sensor: Joi.string().required(),
-  time: Joi.date().iso().required(),
+  time: Joi.string().required(),
   light: Joi.number().allow(null).default(null),
   co2: Joi.number().allow(null).default(null),
   soil_moisture: Joi.number().allow(null).default(null),
@@ -14,17 +14,6 @@ const SENSOR_DATA_COLLECTION_SCHEMA = Joi.object({
   serverReceivedAt: Joi.date().timestamp('javascript').default(Date.now),
   createdAt: Joi.date().timestamp('javascript').default(Date.now)
 })
-
-//Tương tự như ở sensor
-const ensureSensorDataIndex = async () => {
-  try {
-    const db = GET_DB()
-    // Index để query data theo sensor và sắp xếp theo thời gian
-    await db.collection(SENSOR_DATA_COLLECTION_NAME).createIndex({ sensor: 1, time: -1 })
-  } catch (error) {
-    console.error('Error ensuring sensor_data indexes:', error)
-  }
-}
 
 const validateBeforeCreate = async (data) => {
   return await SENSOR_DATA_COLLECTION_SCHEMA.validateAsync(data, { abortEarly: false })
@@ -66,7 +55,6 @@ const countDataBySensor = async (sensorId) => {
 export const sensorDataModel = {
   SENSOR_DATA_COLLECTION_NAME,
   SENSOR_DATA_COLLECTION_SCHEMA,
-  ensureSensorDataIndex,
   createNew,
   findDataBySensor,
   countDataBySensor

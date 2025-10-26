@@ -16,15 +16,6 @@ const SENSOR_COLLECTION_SCHEMA = Joi.object({
 const SENSOR_INVALID_UPDATE_FIELDS = ['_id', 'user', 'deviceId', 'createdAt']
 
 //Tìm kiếm nhanh hơn để tối ưu db
-const ensureSensorIndex = async () =>{
-  try {
-    const db = GET_DB()
-
-    await db.collection(SENSOR_COLLECTION_NAME).createIndex({ deviceId: 1 }, { unique: true })
-    await db.collection(SENSOR_COLLECTION_NAME).createIndex({ user: 1 })
-  } catch (error) { console.error('Error ensuring sensor index') }
-}
-
 const validateBeforeCreate = async(data) => {
   return await SENSOR_COLLECTION_SCHEMA.validateAsync(data, { abortEarly: false })
 }
@@ -41,6 +32,14 @@ const createNew = async(data) => {
     return createSensor
   } catch (error) { throw new Error(error) }
 }
+
+const findOneById = async (userId) => {
+  try {
+    const result = await GET_DB().collection(SENSOR_COLLECTION_NAME).findOne({ _id: new ObjectId(userId) })
+    return result
+  } catch (error) { throw new Error(error) }
+}
+
 
 const findOneByDeviceId = async (deviceId) => {
   try {
@@ -66,7 +65,7 @@ const findOneUserAndDeviceId = async(userId, deviceId) => {
 export const sensorModel = {
   SENSOR_COLLECTION_NAME,
   SENSOR_COLLECTION_SCHEMA,
-  ensureSensorIndex,
+  findOneById,
   createNew,
   findOneByDeviceId,
   findOneByUserId,

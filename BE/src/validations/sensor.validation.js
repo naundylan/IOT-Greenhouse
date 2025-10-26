@@ -38,7 +38,7 @@ const getSensorData = async (req, res, next) => {
 }
 
 const mqttSchemaData = Joi.object({
-  time: Joi.string().isoDate().required(),
+  time: Joi.string().required(),
   light: Joi.number().optional().allow(null),
   co2: Joi.number().optional().allow(null),
   soil_moisture: Joi.number().optional().allow(null),

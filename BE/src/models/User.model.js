@@ -1,7 +1,7 @@
 import Joi from 'joi'
 import { ObjectId } from 'mongodb'
 import { GET_DB } from '~/config/mongodb'
-import { EMAIL_RULE, PASSWORD_RULE, PHONE_RULE } from '~/utils/validator'
+import { EMAIL_RULE, PASSWORD_RULE, PHONE_RULE, OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validator'
 
 const USER_ROLE = {
   CLIENT: 'client',
@@ -25,6 +25,9 @@ const USER_COLLECTION_SCHEMA = Joi.object({
   isActive: Joi.boolean().default(false),
   verifyToken: Joi.string(),
   verifyPwdToken: Joi.string().allow(null).default(null),
+  sensorOrderIds: Joi.array().items(Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)).default([]),
+  plantOrderIds: Joi.array().items(Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)).default([]),
+  historyOrderIds: Joi.array().items(Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE)).default([]),
 
   createdAt: Joi.date().timestamp('javascript').default(Date.now),
   updateAt: Joi.date().timestamp('javascript').default(null),
@@ -80,11 +83,39 @@ const update = async (userId, updateData) => {
   } catch (error) { throw new Error(error) }
 }
 
+const pushPlantOrderIds = async(plant) => {
+  try {
+    const result = await GET_DB().collection(USER_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(plant.userId) },
+      { $push: { plantOrderIds: new ObjectId(plant._id) } },
+      { returnDocument: 'after' } // trả về sau khi cập nhật
+    )
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
+const pushSensorOrderIds = async(sensor) => {
+  try {
+    const result = await GET_DB().collection(USER_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(sensor.user) },
+      { $push: { sensorOrderIds: new ObjectId(sensor._id) } },
+      { returnDocument: 'after' } // trả về sau khi cập nhật
+    )
+    return result
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+
 export const userModel = {
   USER_COLLECTION_NAME,
   USER_COLLECTION_SCHEMA,
   createdNew,
   findOneById,
   findOneByEmail,
-  update
+  update,
+  pushPlantOrderIds,
+  pushSensorOrderIds
 }
