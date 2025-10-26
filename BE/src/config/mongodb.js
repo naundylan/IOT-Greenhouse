@@ -18,8 +18,6 @@ export const CONNECT_DB = async() => {
 
   nckhDatabaseInstance = mongoClientInstance.db(env.DATABASE_NAME)
 
-  await sensorModel.ensureSensorIndex()
-  await sensorDataModel.ensureSensorDataIndex()
 }
 
 export const CLOSE_DB = async() => {

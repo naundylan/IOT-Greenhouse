@@ -13,9 +13,7 @@ Router.route('/')
 
 Router.route('/:deviceId/data')
   .get(
-    auth.isAuthorized,
-    sensorValidation.getSensorData,
-    sensorController.getSensorData
+    auth.isAuthorized, sensorValidation.getSensorData, sensorController.getSensorData
   )
 
 export const sensorRoute = Router

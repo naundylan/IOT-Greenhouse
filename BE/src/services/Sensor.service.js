@@ -3,6 +3,7 @@ import { sensorModel } from '~/models/Sensor.model'
 import { sensorDataModel } from '~/models/SensorData.model'
 import ApiError from '~/utils/ApiError'
 import { StatusCodes } from 'http-status-codes'
+import { userModel } from '~/models/User.model'
 
 const registerDevice = async ( userId, reqBody ) => {
   try {
@@ -18,8 +19,13 @@ const registerDevice = async ( userId, reqBody ) => {
       name: name
     }
     const createdSensor = await sensorModel.createNew(newSensor)
+    const getNewSensor = await sensorModel.findOneById(createdSensor.insertedId)
 
-    return createdSensor
+    if (getNewSensor) {
+      await userModel.pushSensorOrderIds(getNewSensor)
+    }
+
+    return getNewSensor
   } catch (error) { throw error }
 }
 
