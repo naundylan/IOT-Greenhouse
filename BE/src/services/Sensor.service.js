@@ -6,6 +6,8 @@ import { StatusCodes } from 'http-status-codes'
 import { userModel } from '~/models/User.model'
 import { historyService } from '~/services/alert.historyService'
 import { PUBLISH_MQTT } from '~/config/mqtt'
+import { BrevoProvider } from '~/providers/Brevo.provider'
+
 
 const registerDevice = async ( userId, reqBody ) => {
   try {
@@ -102,10 +104,25 @@ const processThreshold = async (parameterName, value, thresholds, commands, aler
 
   const command = check.status === 'HIGH' ? commands.high : commands.low
 
+  const user = await userModel.findOneById(alertPayload.user)
+
+  const customSubject = `[CẢNH BÁO] ${alertPayload.sensorName} - ${parameterName} bất thường!`
+  const htmlContent = `
+    <h3>Cảnh báo hệ thống Smart Farm:</h3>
+    <p>Cảm biến <strong>${alertPayload.sensorName}</strong> của bạn vừa ghi nhận một thông số bất thường:</p>
+    <p style="font-size: 16px; color: red;"><strong>${message}</strong></p>
+    <p>Hệ thống đã tự động gửi lệnh <strong>${command}</strong> để xử lý.</p>
+    <br/>
+    <p>Vui lòng kiểm tra hệ thống.</p>
+  `
   try {
     await Promise.all([ // Chạy song song
       historyService.createNew(finalPayload),
-      PUBLISH_MQTT(commandTopic, JSON.stringify({ command }))
+      PUBLISH_MQTT(commandTopic, JSON.stringify({ command })),
+
+      user && user.email
+        ? BrevoProvider.sendEMail(user.email, customSubject, htmlContent)
+        : Promise.resolve()
     ])
   } catch (error) {
     console.error(`Failed to process ${parameterName} alert:`, error)
