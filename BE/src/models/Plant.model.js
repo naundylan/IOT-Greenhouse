@@ -104,14 +104,14 @@ const updatePlant = async(plantId, updateData) => {
 
 const deleteOneById = async(id) => {
   try {
-    return await GET_DB().collection(PLANT_COLLECTION_NAME).deleteOne({
-      _id: new ObjectId(id)
-    })
+    return await GET_DB().collection(PLANT_COLLECTION_NAME).deleteOne(
+      { _id: new ObjectId(id) },
+      { $set: { _destroy: true } }
+    )
   } catch (error) {
     throw new Error(error)
   }
 }
-
 
 export const plantModel = {
   PLANT_COLLECTION_NAME,

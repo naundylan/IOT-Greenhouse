@@ -4,6 +4,8 @@ import { sensorDataModel } from '~/models/SensorData.model'
 import ApiError from '~/utils/ApiError'
 import { StatusCodes } from 'http-status-codes'
 import { userModel } from '~/models/User.model'
+import { historyService } from '~/services/alert.historyService'
+import { PUBLISH_MQTT } from '~/config/mqtt'
 
 const registerDevice = async ( userId, reqBody ) => {
   try {
@@ -77,9 +79,59 @@ const saveMqttData = async (deviceId, validateData) => {
   } catch (error) { console.log(error.message) }
 }
 
+const checkThreshold = (value, { min, max }) => {
+  if (max && value > max) return { status: 'HIGH', threshold: max }
+  if (min && value < min) return { status: 'LOW', threshold: min }
+  return null
+}
+
+const processThreshold = async (parameterName, value, thresholds, commands, alertPayload, commandTopic) => {
+  const check = checkThreshold(value, thresholds)
+  if (!check) return
+
+  const message = check.status === 'HIGH'
+    ? `${parameterName} vượt ngưỡng ${check.threshold}, giá trị hiện tại: ${value}`
+    : `${parameterName} thấp hơn ngưỡng ${check.threshold}, giá trị hiện tại: ${value}`
+
+  const finalPayload = {
+    ...alertPayload,
+    parameterName,
+    triggeredValue: value,
+    message
+  }
+
+  const command = check.status === 'HIGH' ? commands.high : commands.low
+
+  try {
+    await Promise.all([ // Chạy song song
+      historyService.createNew(finalPayload),
+      PUBLISH_MQTT(commandTopic, JSON.stringify({ command }))
+    ])
+  } catch (error) {
+    console.error(`Failed to process ${parameterName} alert:`, error)
+  }
+}
+
+const checkAndCreateAlerts = (sensor, data) => {
+  const thresholds = sensor.thresholds || {}
+  const { co2, humidity, airTemperature, soilMoisture, soilTemperature, lightIntensity } = thresholds
+
+  const alertPayload = {
+    user: sensor.user,
+    sensor: sensor._id,
+    sensorName: sensor.name
+  }
+
+  const commandTopic = `smartfarm/${sensor.deviceId}/cmd`
+
+  processThreshold('CO2', data.co2, co2, { high: 'FAN_ON', low: 'FAN_OFF' }, alertPayload, commandTopic)
+  processThreshold('Nhiệt độ', data.airTemperature, airTemperature, { high: 'COOLER_ON', low: 'COOLER_OFF' }, alertPayload, commandTopic)
+}
+
 export const sensorService = {
   registerDevice,
   getMySensors,
   getSensorData,
-  saveMqttData
+  saveMqttData,
+  checkAndCreateAlerts
 }
