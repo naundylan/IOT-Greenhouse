@@ -26,6 +26,7 @@ import {
 
 
 
+
 const METRIC_STATUS_LEVELS = {
   'CO₂': [
     { level: 'Thấp', range: '< 400 ppm', description: 'Cây quang hợp chậm, cần bổ sung CO₂.', color: '#64b5f6' }, // blue
@@ -128,7 +129,7 @@ function DashboardPage() {
   const handleClickMenu = (event) => setAnchorEl(event.currentTarget);
   const handleCloseMenu = () => setAnchorEl(null);
   const handleGoToSettings = () => {
-    navigate("/settings");
+    navigate("/settings/account");
     handleCloseMenu();
   };
   const handleLogout = () => {

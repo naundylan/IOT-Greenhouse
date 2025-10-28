@@ -9,6 +9,7 @@ import ResetPasswordPage from './pages/ResetPassword';
 import NotFoundPage from './pages/ErrorPage/404';  
 import InternalServerError from './pages/ErrorPage/500';
 import AccountSettings from './pages/SettingPage/AccountSetting';
+import HistoryPage from './pages/History';
 function App() {
   return (
     <BrowserRouter>
@@ -21,9 +22,9 @@ function App() {
         <Route path="/password/forgot" element={<ForgotPasswordPage />} />
         <Route path="/password/reset" element={<ResetPasswordPage />} />
         <Route path="/settings/account" element={<AccountSettings />} />
+        <Route path="History" element={<HistoryPage />} />
         <Route path="/500" element={<InternalServerError />} />
         <Route path="*" element={<NotFoundPage />} />
-
       </Routes>
     </BrowserRouter>
   );

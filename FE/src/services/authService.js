@@ -21,16 +21,19 @@ export const loginUser = (credentials) => {
 };
 //Hàm quên mật khẩu
 export const forgotPassword = (emailData) => {
-    return apiClient.post('users/forgot-password', emailData);
+    return apiClient.post('users/password/forgot', emailData);
 };
 export const getCurrentUser = () => {
-    return apiClient.get('users/verity'); 
+    return apiClient.get('users/verify'); 
 };
 // Hàm đặt lại mật khẩu
 export const resetPassword = (resetData) => {
-    return apiClient.post('users/reset-password', resetData);
+    return apiClient.post('users/password/reset', resetData);
 };
 // Hàm đăng xuất người dùng
 export const logoutUser = () => {
     return apiClient.post('users/logout');
 };
+export const updateUserProfile = (userData) => {
+    return apiClient.put('users/update', userData);
+}
