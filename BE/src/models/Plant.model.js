@@ -1,4 +1,4 @@
-import Joi, { invalid } from 'joi'
+import Joi from 'joi'
 import { ObjectId } from 'mongodb'
 import { GET_DB } from '~/config/mongodb'
 import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validator'
@@ -104,14 +104,14 @@ const updatePlant = async(plantId, updateData) => {
 
 const deleteOneById = async(id) => {
   try {
-    return await GET_DB().collection(PLANT_COLLECTION_NAME).deleteOne({
-      _id: new ObjectId(id)
-    })
+    return await GET_DB().collection(PLANT_COLLECTION_NAME).deleteOne(
+      { _id: new ObjectId(id) },
+      { $set: { _destroy: true } }
+    )
   } catch (error) {
     throw new Error(error)
   }
 }
-
 
 export const plantModel = {
   PLANT_COLLECTION_NAME,

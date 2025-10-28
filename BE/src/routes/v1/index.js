@@ -4,6 +4,7 @@ import { userRoute } from '~/routes/v1/user.route'
 import { sensorRoute } from '~/routes/v1/sensor.route'
 import { plantRouter } from './plant.route'
 import { presetRouter } from './preset.route'
+import { historyRouter } from './history.route'
 
 
 const Router = express.Router()
@@ -20,5 +21,7 @@ Router.use('/sensors', sensorRoute)
 Router.use('/plants', plantRouter )
 
 Router.use('/presets', presetRouter)
+
+Router.use('/history', historyRouter)
 
 export const APIs_V1 = Router
