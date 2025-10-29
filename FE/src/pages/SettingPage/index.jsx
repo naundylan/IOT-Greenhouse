@@ -6,13 +6,13 @@ import {
   Toolbar,
   IconButton,
   Typography,
-  Avatar,
   Menu,
   MenuItem,
   Divider,
   Button,
   Stack,
   TextField,
+  Avatar,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
@@ -23,10 +23,10 @@ import ShareIcon from "@mui/icons-material/Share";
 const MOCK_USER = {
   fullName: "Username",
   gender: "Non-binary",
-  dob: "2025-01-01",
+  dob: "January 01, 2025",
   email: "havu2845@gmail.com",
   phone: "0974546812",
-  username: "username",
+  username: "Username",
   password: "********",
 };
 
@@ -83,11 +83,40 @@ export default function AccountSettings() {
   const [avatar, setAvatar] = useState(null);
   const [userData, setUserData] = useState(MOCK_USER);
   const [plant, setPlant] = React.useState("4 season lettuce");
+
   const [presets, setPresets] = React.useState(() => {
     const saved = localStorage.getItem("alert-presets");
     return saved ? JSON.parse(saved) : defaultPresets;
   });
 
+  // ✅ useEffect nằm ngoài useState
+  React.useEffect(() => {
+    const saved = localStorage.getItem("alert-presets");
+    const oldPresets = saved ? JSON.parse(saved) : {};
+
+    const merged = { ...defaultPresets };
+
+    Object.keys(oldPresets).forEach((plantKey) => {
+      merged[plantKey] = oldPresets[plantKey].map((oldItem, i) => {
+        const defItem = defaultPresets[plantKey]?.[i];
+        return defItem ? { ...defItem, ...oldItem } : oldItem;
+      });
+    });
+
+    setPresets(merged);
+    localStorage.setItem("alert-presets", JSON.stringify(merged));
+  }, []);
+
+
+
+  const handleSavePlant = () => {
+    localStorage.setItem("alert-presets", JSON.stringify(presets));
+    alert(`✅ Settings saved for ${plant}!`);
+  };
+  const handleSave = () => setIsEditing(false);
+  const handleChange = (field, value) => {
+    setUserData((prev) => ({ ...prev, [field]: value }));
+  };
   const handleChangeValue = (paramIndex, key, value) => {
     setPresets((prev) => {
       const newPresets = { ...prev };
@@ -95,17 +124,6 @@ export default function AccountSettings() {
       return newPresets;
     });
   };
-
-  const handleSavePlant = () => {
-    localStorage.setItem("alert-presets", JSON.stringify(presets));
-    alert(`✅ Settings saved for ${plant}!`);
-  };
-
-  const handleSave = () => setIsEditing(false);
-  const handleChange = (field, value) => {
-    setUserData((prev) => ({ ...prev, [field]: value }));
-  };
-
   const handleAvatarChange = (e) => {
     const file = e.target.files[0];
     if (file) setAvatar(URL.createObjectURL(file));
@@ -139,7 +157,7 @@ export default function AccountSettings() {
             GREEHOUSE
           </Typography>
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <Typography>{userData?.username || userData?.["Tên người dùng"] || "—"}</Typography>
+            <Typography>{userData.username}</Typography>
             <Avatar src={avatar} />
             <IconButton color="inherit" onClick={handleClickMenu}>
               <MenuIcon />
@@ -309,6 +327,7 @@ export default function AccountSettings() {
                     </Box>
                   )}
                 </Stack>
+
                 {[
                   { label: "Họ và tên", field: "fullName" },
                   { label: "Giới tính", field: "gender" },
@@ -329,13 +348,11 @@ export default function AccountSettings() {
               <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
                 Thông tin đăng nhập
               </Typography>
-              <Box sx={{ background: "white", borderRadius: 2, p: 3 }}>
-                {[
-                  [
-                    { label: "Tên người dùng", field: "username" },
-                    { label: "Mật khẩu", field: "password" },
-                  ]
 
+              <Box sx={{ background: "#fff", borderRadius: 2, p: 3 }}>
+                {[
+                  { label: "Tên người dùng", field: "username" },
+                  { label: "Mật khẩu", field: "password" },
                 ].map(({ label, field }) => (
                   <InfoRow
                     key={field}
@@ -369,8 +386,123 @@ export default function AccountSettings() {
             </>
           )}
 
+          {selected === "Thông báo" && (
+            <Box>
+              <Typography
+                variant="h5"
+                fontWeight="bold"
+                sx={{ borderBottom: "2px solid #000", mb: 3 }}
+              >
+                Cài đặt thông báo
+              </Typography>
+
+              {/* STATE HOẶC LOGIC */}
+              {(() => {
 
 
+                // state cho cây trồng và preset
+                console.log(presets[plant]);
+
+                return (
+                  <Box>
+                    {/* CHỌN CÂY */}
+                    <Typography variant="h6" fontWeight="bold" sx={{ mb: 1 }}>
+                      Chọn loại cây
+                    </Typography>
+                    <TextField
+                      select
+                      fullWidth
+                      size="small"
+                      value={plant}
+                      onChange={(e) => setPlant(e.target.value)}
+                      SelectProps={{ native: true }}
+                      sx={{ mb: 3, background: "#fff", borderRadius: 1 }}
+                    >
+                      {Object.keys(presets).map((p) => (
+                        <option key={p} value={p}>
+                          {p}
+                        </option>
+                      ))}
+                    </TextField>
+
+                    {/* DANH SÁCH THÔNG SỐ */}
+                    <Typography
+                      variant="h6"
+                      fontWeight="bold"
+                      sx={{
+                        mb: 2,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      Danh sách cảnh báo thiết lập
+                      <Button variant="contained" color="success" size="small" onClick={handleSavePlant}>
+                        Lưu
+                      </Button>
+                    </Typography>
+
+                    <Box
+                      sx={{
+                        maxHeight: "65vh",            // Giới hạn chiều cao khung hiển thị
+                        overflowY: "auto",            // Cho phép cuộn dọc
+                        pr: 1,                        // chừa khoảng tránh thanh cuộn
+                        scrollbarWidth: "thin",       // Firefox
+                        "&::-webkit-scrollbar": { width: "8px" },  // Chrome
+                        "&::-webkit-scrollbar-thumb": {
+                          backgroundColor: "#a5d6a7",  // màu thanh cuộn
+                          borderRadius: "8px",
+                        },
+                      }}
+                    >
+                      <Stack spacing={2}>
+                        {presets[plant].map((item, index) => (
+                          <Box
+                            key={item.title}
+                            sx={{
+                              background: "#fff",
+                              borderRadius: 2,
+                              p: 2,
+                              boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+                            }}
+                          >
+                            <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1 }}>
+                              {item.title} Settings
+                            </Typography>
+
+                            <Box sx={{ ml: 3 }}>
+                              <Typography variant="body2" sx={{ mb: 1 }}>
+                                • <b>Threshold:</b> Max:{" "}
+                                <TextField
+                                  size="small"
+                                  value={item.max}
+                                  sx={{ width: 100, mx: 1 }}
+                                  onChange={(e) => handleChangeValue(index, "max", e.target.value)}
+                                />
+                                Min:{" "}
+                                <TextField
+                                  size="small"
+                                  value={item.min}
+                                  sx={{ width: 100, mx: 1 }}
+                                  onChange={(e) => handleChangeValue(index, "min", e.target.value)}
+                                />{" "}
+                                {item.unit}
+                              </Typography>
+
+                              <Typography variant="body2">
+                                • <b>Tham số:</b> {item.type}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        ))}
+                      </Stack>
+                    </Box>
+
+                  </Box>
+                );
+              })()}
+            </Box>
+          )}
 
 
         </Box>

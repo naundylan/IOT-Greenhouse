@@ -7,7 +7,7 @@ import { CONNECT_DB, CLOSE_DB } from '~/config/mongodb'
 import { env } from '~/config/environment'
 import { errorHandling } from './middlewares/errorHandling'
 import cookieParser from 'cookie-parser'
-import { CONNECT_MQTT, CLOSE_MQTT } from './config/mqtt'
+
 import { initializeMqttListener } from './sockets/mqtt.listener'
 
 const START_SERVER =() => {
@@ -36,14 +36,14 @@ const START_SERVER =() => {
   })
   exitHook(() => {
     CLOSE_DB()
-    CLOSE_MQTT()
+   /* CLOSE_MQTT()*/
   })
 }
 
 (async () => {
   try {
     await CONNECT_DB()
-    await CONNECT_MQTT()
+    /*await CONNECT_MQTT()*/
 
     await initializeMqttListener()
 
