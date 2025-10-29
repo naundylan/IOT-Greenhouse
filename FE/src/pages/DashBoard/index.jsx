@@ -22,7 +22,7 @@ import {
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, Button
 } from "@mui/material";
-
+import { TextField } from "@mui/material";
 
 
 
@@ -103,16 +103,12 @@ function DashboardPage() {
   const [isSwitchLoading, setIsSwitchLoading] = useState(false);
   const openMenu = Boolean(anchorEl);
   const navigate = useNavigate();
-
-  // 🧩 Giả lập tải dữ liệu mockup
-  useEffect(() => {
-    console.warn("📊 Dashboard đang chạy ở chế độ MOCKUP.");
-    const timer = setTimeout(() => {
-      setDashboardData(mockDashboardData);
-      setLoading(false);
-    }, 800);
-    return () => clearTimeout(timer);
-  }, []);
+  const [userInfo, setUserInfo] = useState({
+    name: "Username",
+    gender: "Non-binary",
+    dob: "January 01, 2025",
+    email: "havu2845@gmail.com",
+  });
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedMetric, setSelectedMetric] = useState(null);
   const handleOpenMetricDetail = (metric) => {
@@ -129,13 +125,31 @@ function DashboardPage() {
   const handleClickMenu = (event) => setAnchorEl(event.currentTarget);
   const handleCloseMenu = () => setAnchorEl(null);
   const handleGoToSettings = () => {
-    navigate("/settings/account");
+    navigate("/settings");
     handleCloseMenu();
   };
   const handleLogout = () => {
     navigate("/login");
     handleCloseMenu();
   };
+
+  const [openUserDialog, setOpenUserDialog] = useState(false);
+  const handleOpenUserDialog = () => setOpenUserDialog(true);
+  const handleCloseUserDialog = () => setOpenUserDialog(false);
+  const handleUpdateProfile = () => {
+    console.log("✅Thông tin đã cập nhập:", userInfo);
+    // TODO: gửi dữ liệu lên server
+    handleCloseUserDialog();
+  };
+  useEffect(() => {
+    console.warn("📊 Dashboard đang chạy ở chế độ MOCKUP.");
+    const timer = setTimeout(() => {
+      setDashboardData(mockDashboardData);
+      setLoading(false);
+    }, 800);
+    return () => clearTimeout(timer);
+  }, []);
+
 
   // 💡 Bật/Tắt đèn
   const handleToggleLight = async () => {
@@ -154,11 +168,11 @@ function DashboardPage() {
       setIsSwitchLoading(false);
     }
   };
+  //Bật quạt
   const handleToggleFan = async () => {
     if (!dashboardData) return;
     const newStatus = !dashboardData.lightStatus;
     setIsSwitchLoading(true);
-
     try {
       // Giả lập API
       await axios.patch(`/api/greenhouses/${dashboardData.id}/light`, { status: newStatus });
@@ -179,6 +193,7 @@ function DashboardPage() {
       </Box>
     );
   }
+
 
   return (
     <Box
@@ -203,8 +218,14 @@ function DashboardPage() {
             GREEHOUSE
           </Typography>
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <Typography sx={{ display: { xs: "none", sm: "block" } }}>USERNAME</Typography>
-            <Avatar />
+            <Typography
+              sx={{ display: { xs: "none", sm: "block" }, cursor: "pointer" }}
+              onClick={handleOpenUserDialog}
+            >
+              {userInfo.name}
+            </Typography>
+            <Avatar sx={{ cursor: "pointer" }} onClick={handleOpenUserDialog} />
+
             <IconButton color="inherit" onClick={handleClickMenu}>
               <MenuIcon />
             </IconButton>
@@ -212,6 +233,7 @@ function DashboardPage() {
               <MenuItem onClick={handleLogout}>Đăng xuất</MenuItem>
               <Divider />
               <MenuItem onClick={handleGoToSettings}>Cài Đặt</MenuItem>
+
             </Menu>
           </Box>
         </Toolbar>
@@ -416,6 +438,8 @@ function DashboardPage() {
           </Stack>
         </Card>
       </Box>
+
+{/* 💡 Bật tắt các thông số */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontWeight: "bold", color: "#2e7d32" }}>
           {selectedMetric?.label}
@@ -454,6 +478,41 @@ function DashboardPage() {
         <DialogActions>
           <Button onClick={handleCloseDialog} variant="contained" sx={{ bgcolor: "#2e7d32" }}>
             Đóng
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+
+{/* 💡 Thông tin người dùng */}
+      <Dialog open={openUserDialog} onClose={handleCloseUserDialog} sx= {{ borderRadius : "8px"}}>
+        <DialogTitle>Thông tin người dùng</DialogTitle>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 3, width: 500 , borderRadius : 4 , overflow: "visible"}}>
+          <TextField
+            label="Họ và tên"
+            fullWidth
+            value={userInfo.name}
+            onChange={(e) => setUserInfo({ ...userInfo, name: e.target.value })}
+          />
+          <TextField
+            label="Email"
+            value={userInfo.email}
+            onChange={(e) => setUserInfo({ ...userInfo, email: e.target.value })}
+          />
+          <TextField
+            label="Giới tính"
+            value={userInfo.gender}
+            onChange={(e) => setUserInfo({ ...userInfo, gender: e.target.value })}
+          />
+          <TextField
+            label="Ngày sinh"
+            value={userInfo.dob}
+            onChange={(e) => setUserInfo({ ...userInfo, dob: e.target.value })}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseUserDialog} sx= {{ borderRadius : "8px"}}>Hủy</Button>
+          <Button variant="contained" color="primary" onClick={handleUpdateProfile} sx= {{ borderRadius : "8px"}}>
+            Lưu thay đổi
           </Button>
         </DialogActions>
       </Dialog>
