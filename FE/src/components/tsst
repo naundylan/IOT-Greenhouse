@@ -1,191 +1,410 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-    Box,
-    TextField,
-    Button,
-    Typography,
-    InputAdornment,
-    IconButton,
-    Stack,
-    Alert,
-    CircularProgress,
-} from '@mui/material';
-import EmailIcon from '@mui/icons-material/Email';
-import PersonIcon from '@mui/icons-material/Person';
-import LockIcon from '@mui/icons-material/Lock';
-import Visibility from '@mui/icons-material/Visibility';
-import VisibilityOff from '@mui/icons-material/VisibilityOff';
-import { registerUser } from '../../services/authService';
-import StyledTextField from '../../components/StyledTextField';
+  Box,
+  AppBar,
+  Toolbar,
+  IconButton,
+  Typography,
+  Avatar,
+  Menu,
+  MenuItem,
+  Divider,
+  Button,
+  Stack,
+  TextField,
+} from "@mui/material";
+import MenuIcon from "@mui/icons-material/Menu";
+import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
+import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import ShareIcon from "@mui/icons-material/Share";
+
+const MOCK_USER = {
+  fullName: "Username",
+  gender: "Non-binary",
+  dob: "2025-01-01",
+  email: "havu2845@gmail.com",
+  phone: "0974546812",
+  username: "username",
+  password: "********",
+};
 
 
-function SignUpPage() {
-    // Sử dụng useNavigate để chuyển hướng sau khi đăng ký thành công
-    const navigate = useNavigate();
-    // State để quản lý form và các trạng thái khác
-    const [formData, setFormData] = useState({
-        email: '',
-        username: '',
-        password: '',
-        confirmPassword: '',
+const defaultPresets = {
+  "4 season lettuce": [
+    { title: "CO₂", min: 1200, max: 1500, unit: "ppm", type: "Microclimate" },
+    { title: "Độ ẩm đất", min: 40, max: 70, unit: "%", type: "Soil" },
+    { title: "Nhiệt độ không khí", min: 18, max: 32, unit: "°C", type: "Microclimate" },
+    { title: "Nhiệt độ đất", min: 20, max: 35, unit: "°C", type: "Soil" },
+    { title: "Độ ẩm không khí", min: 50, max: 80, unit: "%", type: "Microclimate" },
+    { title: "Ánh sáng", min: 40, max: 70, unit: "lux", type: "Environment" },
+  ],
+  Spinach: [
+    { title: "CO₂", min: 1000, max: 1400, unit: "ppm", type: "Microclimate" },
+    { title: "Độ ẩm đất", min: 45, max: 75, unit: "%", type: "Soil" },
+    { title: "Nhiệt độ không khí", min: 15, max: 28, unit: "°C", type: "Microclimate" },
+    { title: "Nhiệt độ đất", min: 18, max: 30, unit: "°C", type: "Soil" },
+    { title: "Độ ẩm không khí", min: 55, max: 85, unit: "%", type: "Microclimate" },
+    { title: "Ánh sáng", min: 50, max: 90, unit: "lux", type: "Environment" },
+  ],
+  Tomato: [
+    { title: "CO₂", min: 1300, max: 1600, unit: "ppm", type: "Microclimate" },
+    { title: "Độ ẩm đất", min: 50, max: 80, unit: "%", type: "Soil" },
+    { title: "Nhiệt độ không khí", min: 20, max: 35, unit: "°C", type: "Microclimate" },
+    { title: "Nhiệt độ đất", min: 22, max: 30, unit: "°C", type: "Soil" },
+    { title: "Độ ẩm không khí", min: 60, max: 85, unit: "%", type: "Microclimate" },
+    { title: "Ánh sáng", min: 60, max: 100, unit: "lux", type: "Environment" },
+  ],
+};
+
+export default function AccountSettings() {
+  const [anchorEl, setAnchorEl] = useState(null);
+  const navigate = useNavigate();
+
+  const handleClickMenu = (event) => setAnchorEl(event.currentTarget);
+  const handleCloseMenu = () => setAnchorEl(null);
+  const handleLogout = () => {
+    navigate("/login");
+  };
+
+  const handleClickHistory = () => {
+    navigate("/history");
+  };
+  const handleClickSettings = () => {
+    navigate("/settings");
+  }
+  const handleDashboard = () => {
+    navigate("/dashboard");
+    handleCloseMenu();
+  }
+  const [isEditing, setIsEditing] = useState(false);
+  const [selected, setSelected] = useState("Account");
+  const [avatar, setAvatar] = useState(null);
+  const [userData, setUserData] = useState(MOCK_USER);
+  const [plant, setPlant] = React.useState("4 season lettuce");
+  const [presets, setPresets] = React.useState(() => {
+    const saved = localStorage.getItem("alert-presets");
+    return saved ? JSON.parse(saved) : defaultPresets;
+  });
+
+  const handleChangeValue = (paramIndex, key, value) => {
+    setPresets((prev) => {
+      const newPresets = { ...prev };
+      newPresets[plant][paramIndex][key] = value;
+      return newPresets;
     });
-    // State để quản lý hiển thị mật khẩu
-    const [showPassword, setShowPassword] = useState(false);
-    // State để quản lý trạng thái loading và lỗi
-    const [loading, setLoading] = useState(false);
-    //state hiển thị lỗi
-    const [error, setError] = useState(null);
-    // Hàm xử lý khi người dùng thay đổi giá trị trong form
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prevState => ({ ...prevState, [name]: value }));
-    };
-    // Hàm xử lý khi người dùng submit form
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (formData.password !== formData.confirmPassword) {
-            setError("Mật khẩu xác nhận không khớp!");
-            return;
-        }
+  };
 
-        setError(null);
-        setLoading(true);
+  const handleSavePlant = () => {
+    localStorage.setItem("alert-presets", JSON.stringify(presets));
+    alert(`✅ Settings saved for ${plant}!`);
+  };
 
-        try {
-            const payload = {
-                email: formData.email,
-                username: formData.username,
-                password: formData.password, 
-            };
+  const handleSave = () => setIsEditing(false);
+  const handleChange = (field, value) => {
+    setUserData((prev) => ({ ...prev, [field]: value }));
+  };
 
-            const response = await registerUser(payload);
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0];
+    if (file) setAvatar(URL.createObjectURL(file));
+  };
 
-            console.log('Đăng ký thành công:', response.data);
-            alert('Đăng ký tài khoản thành công! Vui lòng đăng nhập.');
-            navigate('/login');
+  const menuItems = [
+    { label: "Tài khoản", icon: <AccountCircleIcon /> },
+    { label: "Thông báo", icon: <WarningAmberIcon /> },
+  ];
 
-        } catch (apiError) {
-            console.error('Lỗi đăng ký:', apiError);
-            const errorMessage = apiError.response?.data?.message || 'Đã có lỗi xảy ra. Vui lòng thử lại.';
-            setError(errorMessage);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        //
-        <Box
-            sx={{
-                width: '100vw',
-                height: '100vh',
-                display: 'flex',
-                backgroundImage: 'url(/login_bg.svg)',
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                backgroundRepeat: 'no-repeat',
-            }}
-        >
-            <Box
-                component="form"
-                onSubmit={handleSubmit}
-                sx={{
-                    width: { xs: '95%', sm: '80%', md: '50%' },
-                    maxWidth: '650px',
-                    m: 'auto',
-                    backgroundColor: '#22331E',
-                    backdropFilter: 'blur(8px)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    padding: { xs: 3, sm: 4, md: 5 },
-                    borderRadius: '24px',
-                    boxShadow: '0 8px 32px 0 rgba(0,0,0,0.37)',
-                }}
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        minHeight: "100vh",
+        backgroundColor: "#fff",
+      }}
+    >
+      {/* ---------- HEADER ---------- */}
+      <AppBar
+        position="sticky"
+        elevation={1}
+        sx={{
+          background: "linear-gradient(to right, #8DB600, #2E8B57)",
+          color: "white",
+        }}
+      >
+        <Toolbar sx={{ display: "flex", justifyContent: "space-between" }}>
+          <Typography variant="h5" fontWeight="bold">
+            GREEHOUSE
+          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <Typography>{userData?.username || userData?.["Tên người dùng"] || "—"}</Typography>
+            <Avatar src={avatar} />
+            <IconButton color="inherit" onClick={handleClickMenu}>
+              <MenuIcon />
+            </IconButton>
+            <Menu
+              anchorEl={anchorEl}
+              open={Boolean(anchorEl)}
+              onClose={handleCloseMenu}
             >
-                <Typography color="white" variant="h3" component="h1" sx={{ mb: 3, fontWeight: 'bold' }}>
-                    Create Account
-                </Typography>
+              <MenuItem onClick={handleLogout}>Đăng xuất</MenuItem>
+              <Divider />
+              <MenuItem onClick={handleClickSettings}>Cài đặt</MenuItem>
+              <Divider />
+              <MenuItem onClick={handleClickHistory}>Lịch sử</MenuItem>
+              <Divider />
+              <MenuItem onClick={handleDashboard}>Trang chủ</MenuItem>
+            </Menu>
+          </Box>
+        </Toolbar>
+      </AppBar>
 
-                {error && (
-                    <Alert severity="error" sx={{ width: '100%', mb: 2, borderRadius: '16px' }}>
-                        {error}
-                    </Alert>
-                )}
+      {/* ---------- MAIN LAYOUT ---------- */}
+      <Box sx={{ display: "flex", p: 3, gap: 3 }}>
+        {/* Sidebar 4 phần */}
+        <Box
+          sx={{
+            flex: 3,
+            background: "rgba(255,255,255,0.9)",
+            borderRadius: 3,
+            p: 3,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
+          <Typography
+            variant="h5"
+            fontWeight="bold"
+            sx={{ mb: 3, textAlign: "center" }}
+          >
+            Cài đặt
+          </Typography>
 
-                <Stack spacing={3} sx={{ width: '100%' }}>
-                    <StyledTextField name="email" placeholder="Email" fullWidth required type="email" value={formData.email} onChange={handleChange}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <EmailIcon sx={{ ml: 2, fontSize: 30 }} />
-                                </InputAdornment>)
-                        }} />
-                    <StyledTextField name="username" placeholder="Username" fullWidth required value={formData.username} onChange={handleChange}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <PersonIcon sx={{ ml: 2, fontSize: 30 }} />
-                                </InputAdornment>)
-                        }} />
+          {menuItems.map((item) => (
+            <Box key={item.label} sx={{ position: "relative", width: "100%" }}>
+              <Button
+                startIcon={item.icon}
+                fullWidth
+                onClick={() => setSelected(item.label)}
+                sx={{
+                  justifyContent: "flex-start",
+                  textTransform: "none",
+                  fontSize: 18,
+                  fontWeight: 600,
+                  mb: 2,
+                  color: "#000",
+                  borderRadius: 3,
+                  py: 2,
+                  background:
+                    selected === item.label
+                      ? "linear-gradient(90deg, #E3F8D3, #C2E59C)"
+                      : "#E8F5E9",
+                  "&:hover": {
+                    background:
+                      selected === item.label
+                        ? "linear-gradient(90deg, #D4F3C2, #B5E09D)"
+                        : "#DFF0DF",
+                  },
+                }}
+              >
+                {item.label}
+              </Button>
 
-
-                    <StyledTextField
-                        name="password"
-                        placeholder="Password"
-                        type={showPassword ? 'text' : 'password'}
-                        fullWidth
-                        required
-                        value={formData.password}
-                        onChange={handleChange}
-                        InputProps={{
-                            startAdornment: (<InputAdornment position="start"><LockIcon sx={{ ml: 2, fontSize: 30 }} /></InputAdornment>),
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    <IconButton onClick={() => setShowPassword(!showPassword)} edge="end" sx={{ mr: 1 }}>
-                                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                                    </IconButton>
-                                </InputAdornment>
-                            )
-                        }}
-                    />
-
-                    <StyledTextField name="confirmPassword" placeholder="Confirm Password" type="password" fullWidth required value={formData.confirmPassword}
-                        onChange={handleChange} InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <LockIcon sx={{ ml: 2, fontSize: 30 }} />
-                                </InputAdornment>)
-                        }}
-                    />
-
-                    <Button type="submit" variant="contained" color="success" disabled={loading}
-                        sx={{
-                            height: '72px',
-                            borderRadius: '50px',
-                            fontSize: '22px',
-                            fontWeight: 'bold',
-                            textTransform: 'none'
-                        }}
-                    >
-                        {loading ? <CircularProgress size={30} color="inherit" /> : 'Sign Up'}
-                    </Button>
-                </Stack>
-
-                <Typography color="#BDBDBD" mt={3} sx={{ fontSize: '18px' }}>
-                    Already have an account?{' '}
-                    <Link to="/login" style={{ color: '#81c784', fontWeight: 'bold', textDecoration: 'none' }}>
-                        Sign In
-                    </Link>
-                </Typography>
+              {selected === item.label && (
+                <Box
+                  sx={{
+                    position: "absolute",
+                    right: -10,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    width: 0,
+                    height: 0,
+                    borderTop: "10px solid transparent",
+                    borderBottom: "10px solid transparent",
+                    borderLeft: "10px solid #C2E59C",
+                  }}
+                />
+              )}
             </Box>
-            <Box>
-
-            </Box>
+          ))}
         </Box>
-    );
+
+        {/* Content 6 phần */}
+        <Box
+          sx={{
+            flex: 7,
+            background: "rgba(255,255,255,0.9)",
+            borderRadius: 3,
+            p: 4,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            backgroundImage: "url(/nen.png)",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          {selected === "Tài khoản" && (
+            <>
+              <Typography
+                variant="h5"
+                fontWeight="bold"
+                sx={{ borderBottom: "2px solid #000", mb: 3 }}
+              >
+                Cài đặt tài khoản
+              </Typography>
+
+              <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
+                Thông tin cơ bản
+              </Typography>
+
+              <Box sx={{ background: "#fff", borderRadius: 2, p: 3, mb: 3 }}>
+                {/* Avatar upload */}
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  justifyContent="space-between"
+                  sx={{ mb: 2 }}
+                >
+                  <Stack direction="row" alignItems="center" spacing={2}>
+                    <Avatar
+                      src={avatar}
+                      sx={{ width: 70, height: 70, border: "2px solid #ccc" }}
+                    />
+                    <Box>
+                      <Typography fontWeight="500">Ảnh đại diện</Typography>
+                      <Button
+                        variant="contained"
+                        component="label"
+                        color="success"
+                        size="small"
+                        sx={{ mt: 1 }}
+                      >
+                        Cập nhật
+                        <input
+                          hidden
+                          accept="image/*"
+                          type="file"
+                          onChange={handleAvatarChange}
+                        />
+                      </Button>
+                    </Box>
+                  </Stack>
+
+                  {!isEditing && (
+                    <Box>
+                      <Button variant="outlined" color="error" sx={{ mr: 1, borderRadius: 2 }}>
+                        Xóa
+                      </Button>
+                      <Button
+                        variant="contained"
+                        color="success"
+                        onClick={() => setIsEditing(true)}
+                        sx={{ borderRadius: 2 }}
+                      >
+                        Cập nhật
+                      </Button>
+                    </Box>
+                  )}
+                </Stack>
+                {[
+                  { label: "Họ và tên", field: "fullName" },
+                  { label: "Giới tính", field: "gender" },
+                  { label: "Ngày sinh", field: "dob" },
+                  { label: "Email", field: "email" },
+                  { label: "Số điện thoại", field: "phone" },
+                ].map(({ label, field }) => (
+                  <InfoRow
+                    key={field}
+                    label={label}
+                    value={userData[field]}
+                    isEditing={isEditing}
+                    onChange={(val) => handleChange(field, val)}
+                  />
+                ))}
+              </Box>
+
+              <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
+                Thông tin đăng nhập
+              </Typography>
+              <Box sx={{ background: "white", borderRadius: 2, p: 3 }}>
+                {[
+                  [
+                    { label: "Tên người dùng", field: "username" },
+                    { label: "Mật khẩu", field: "password" },
+                  ]
+
+                ].map(({ label, field }) => (
+                  <InfoRow
+                    key={field}
+                    label={label}
+                    value={userData[field]}
+                    isEditing={isEditing}
+                    onChange={(val) => handleChange(field, val)}
+                  />
+                ))}
+
+                {isEditing && (
+                  <Stack
+                    direction="row"
+                    spacing={2}
+                    justifyContent="flex-end"
+                    mt={2}
+                  >
+                    <Button variant="outlined" onClick={() => setIsEditing(false)}>
+                      Hủy
+                    </Button>
+                    <Button
+                      variant="contained"
+                      color="success"
+                      onClick={handleSave}
+                    >
+                      Lưu
+                    </Button>
+                  </Stack>
+                )}
+              </Box>
+            </>
+          )}
+
+
+
+
+
+        </Box>
+      </Box>
+    </Box>
+  );
 }
 
-export default SignUpPage;
+/* --- COMPONENT HIỂN THỊ THÔNG TIN --- */
+function InfoRow({ label, value, isEditing, onChange }) {
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        py: 1.5,
+        borderBottom: "1px solid #eee",
+      }}
+    >
+      <Typography sx={{ fontWeight: 500 }}>{label}</Typography>
+      {isEditing ? (
+        <TextField
+          size="small"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          sx={{ width: 220 }}
+        />
+      ) : (
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <Typography sx={{ color: "#555" }}>{value}</Typography>
+          <ArrowForwardIosIcon sx={{ fontSize: 14, color: "#aaa" }} />
+        </Stack>
+      )}
+    </Box>
+  );
+}

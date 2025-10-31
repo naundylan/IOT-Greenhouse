@@ -1,32 +1,542 @@
-import React, { useState } from 'react';
-import { Box, Grid } from '@mui/material';
-import SettingsSidebar from '../../components/SettingsSidebar';
-import AccountSettings from '../../components/Settings/AccountSettings';
-// import AlertSettings from '../../components/AlertSettings'; // Component cho tương lai
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  Box,
+  AppBar,
+  Toolbar,
+  IconButton,
+  Typography,
+  Menu,
+  MenuItem,
+  Divider,
+  Button,
+  Stack,
+  TextField,
+  Avatar,
+} from "@mui/material";
+import MenuIcon from "@mui/icons-material/Menu";
+import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
+import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import ShareIcon from "@mui/icons-material/Share";
 
-function SettingPage() {
-    const [activeItem, setActiveItem] = useState('account');
+const MOCK_USER = {
+  fullName: "Username",
+  gender: "Non-binary",
+  dob: "January 01, 2025",
+  email: "havu2845@gmail.com",
+  phone: "0974546812",
+  username: "Username",
+  password: "********",
+};
 
-    // Hàm render nội dung tương ứng
-    const renderContent = () => {
-        switch (activeItem) {
-            case 'account':
-                return <AccountSettings />;
-            case 'alert': 
-                return <p>Alert Settings Page</p>; // Placeholder
-            default:
-                return <AccountSettings />;
-        }
-    };
 
-    return (
-        <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
-            <SettingsSidebar activeItem={activeItem} setActiveItem={setActiveItem} />
-            <Box sx={{ width: '100%' }}>
-                {renderContent()}
+const defaultPresets = {
+  "4 season lettuce": [
+    { title: "CO₂", min: 1200, max: 1500, unit: "ppm", type: "Microclimate" },
+    { title: "Độ ẩm đất", min: 40, max: 70, unit: "%", type: "Soil" },
+    { title: "Nhiệt độ không khí", min: 18, max: 32, unit: "°C", type: "Microclimate" },
+    { title: "Nhiệt độ đất", min: 20, max: 35, unit: "°C", type: "Soil" },
+    { title: "Độ ẩm không khí", min: 50, max: 80, unit: "%", type: "Microclimate" },
+    { title: "Ánh sáng", min: 40, max: 70, unit: "lux", type: "Environment" },
+  ],
+  Spinach: [
+    { title: "CO₂", min: 1000, max: 1400, unit: "ppm", type: "Microclimate" },
+    { title: "Độ ẩm đất", min: 45, max: 75, unit: "%", type: "Soil" },
+    { title: "Nhiệt độ không khí", min: 15, max: 28, unit: "°C", type: "Microclimate" },
+    { title: "Nhiệt độ đất", min: 18, max: 30, unit: "°C", type: "Soil" },
+    { title: "Độ ẩm không khí", min: 55, max: 85, unit: "%", type: "Microclimate" },
+    { title: "Ánh sáng", min: 50, max: 90, unit: "lux", type: "Environment" },
+  ],
+  Tomato: [
+    { title: "CO₂", min: 1300, max: 1600, unit: "ppm", type: "Microclimate" },
+    { title: "Độ ẩm đất", min: 50, max: 80, unit: "%", type: "Soil" },
+    { title: "Nhiệt độ không khí", min: 20, max: 35, unit: "°C", type: "Microclimate" },
+    { title: "Nhiệt độ đất", min: 22, max: 30, unit: "°C", type: "Soil" },
+    { title: "Độ ẩm không khí", min: 60, max: 85, unit: "%", type: "Microclimate" },
+    { title: "Ánh sáng", min: 60, max: 100, unit: "lux", type: "Environment" },
+  ],
+};
+
+export default function AccountSettings() {
+  const [anchorEl, setAnchorEl] = useState(null);
+  const navigate = useNavigate();
+
+  const handleClickMenu = (event) => setAnchorEl(event.currentTarget);
+  const handleCloseMenu = () => setAnchorEl(null);
+  const handleLogout = () => {
+    navigate("/login");
+  };
+
+  const handleClickHistory = () => {
+    navigate("/history");
+  };
+  const handleClickSettings = () => {
+    navigate("/settings");
+  }
+  const handleDashboard = () => {
+    navigate("/dashboard");
+    handleCloseMenu();
+  }
+  const [isEditing, setIsEditing] = useState(false);
+  const [selected, setSelected] = useState("Account");
+  const [avatar, setAvatar] = useState(null);
+  const [userData, setUserData] = useState(MOCK_USER);
+  const [plant, setPlant] = React.useState("4 season lettuce");
+
+  const [presets, setPresets] = React.useState(() => {
+    const saved = localStorage.getItem("alert-presets");
+    return saved ? JSON.parse(saved) : defaultPresets;
+  });
+
+  // ✅ useEffect nằm ngoài useState
+  React.useEffect(() => {
+    const saved = localStorage.getItem("alert-presets");
+    const oldPresets = saved ? JSON.parse(saved) : {};
+
+    const merged = { ...defaultPresets };
+
+    Object.keys(oldPresets).forEach((plantKey) => {
+      merged[plantKey] = oldPresets[plantKey].map((oldItem, i) => {
+        const defItem = defaultPresets[plantKey]?.[i];
+        return defItem ? { ...defItem, ...oldItem } : oldItem;
+      });
+    });
+
+    setPresets(merged);
+    localStorage.setItem("alert-presets", JSON.stringify(merged));
+  }, []);
+
+
+
+  const handleSavePlant = () => {
+    localStorage.setItem("alert-presets", JSON.stringify(presets));
+    alert(`✅ Settings saved for ${plant}!`);
+  };
+  const handleSave = () => setIsEditing(false);
+  const handleChange = (field, value) => {
+    setUserData((prev) => ({ ...prev, [field]: value }));
+  };
+  const handleChangeValue = (paramIndex, key, value) => {
+    setPresets((prev) => {
+      const newPresets = { ...prev };
+      newPresets[plant][paramIndex][key] = value;
+      return newPresets;
+    });
+  };
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0];
+    if (file) setAvatar(URL.createObjectURL(file));
+  };
+
+  const menuItems = [
+    { label: "Tài khoản", icon: <AccountCircleIcon /> },
+    { label: "Thông báo", icon: <WarningAmberIcon /> },
+  ];
+
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        minHeight: "100vh",
+        backgroundColor: "#fff",
+      }}
+    >
+      {/* ---------- HEADER ---------- */}
+      <AppBar
+        position="sticky"
+        elevation={1}
+        sx={{
+          background: "linear-gradient(to right, #8DB600, #2E8B57)",
+          color: "white",
+        }}
+      >
+        <Toolbar sx={{ display: "flex", justifyContent: "space-between" }}>
+          <Typography variant="h5" fontWeight="bold">
+            GREEHOUSE
+          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <Typography>{userData.username}</Typography>
+            <Avatar src={avatar} />
+            <IconButton color="inherit" onClick={handleClickMenu}>
+              <MenuIcon />
+            </IconButton>
+            <Menu
+              anchorEl={anchorEl}
+              open={Boolean(anchorEl)}
+              onClose={handleCloseMenu}
+            >
+              <MenuItem onClick={handleLogout}>Đăng xuất</MenuItem>
+              <Divider />
+              <MenuItem onClick={handleClickSettings}>Cài đặt</MenuItem>
+              <Divider />
+              <MenuItem onClick={handleClickHistory}>Lịch sử</MenuItem>
+              <Divider />
+              <MenuItem onClick={handleDashboard}>Trang chủ</MenuItem>
+            </Menu>
+          </Box>
+        </Toolbar>
+      </AppBar>
+
+      {/* ---------- MAIN LAYOUT ---------- */}
+      <Box sx={{ display: "flex", p: 3, gap: 3 }}>
+        {/* Sidebar 4 phần */}
+        <Box
+          sx={{
+            flex: 3,
+            background: "rgba(255,255,255,0.9)",
+            borderRadius: 3,
+            p: 3,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
+          <Typography
+            variant="h5"
+            fontWeight="bold"
+            sx={{ mb: 3, textAlign: "center" }}
+          >
+            Cài đặt
+          </Typography>
+
+          {menuItems.map((item) => (
+            <Box key={item.label} sx={{ position: "relative", width: "100%" }}>
+              <Button
+                startIcon={item.icon}
+                fullWidth
+                onClick={() => setSelected(item.label)}
+                sx={{
+                  justifyContent: "flex-start",
+                  textTransform: "none",
+                  fontSize: 18,
+                  fontWeight: 600,
+                  mb: 2,
+                  color: "#000",
+                  borderRadius: 3,
+                  py: 2,
+                  background:
+                    selected === item.label
+                      ? "linear-gradient(90deg, #E3F8D3, #C2E59C)"
+                      : "#E8F5E9",
+                  "&:hover": {
+                    background:
+                      selected === item.label
+                        ? "linear-gradient(90deg, #D4F3C2, #B5E09D)"
+                        : "#DFF0DF",
+                  },
+                }}
+              >
+                {item.label}
+              </Button>
+
+              {selected === item.label && (
+                <Box
+                  sx={{
+                    position: "absolute",
+                    right: -10,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    width: 0,
+                    height: 0,
+                    borderTop: "10px solid transparent",
+                    borderBottom: "10px solid transparent",
+                    borderLeft: "10px solid #C2E59C",
+                  }}
+                />
+              )}
             </Box>
+          ))}
         </Box>
-    );
+
+        {/* Content 6 phần */}
+        <Box
+          sx={{
+            flex: 7,
+            background: "rgba(255,255,255,0.9)",
+            borderRadius: 3,
+            p: 4,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            backgroundImage: "url(/nen.png)",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          {selected === "Tài khoản" && (
+            <>
+              <Typography
+                variant="h5"
+                fontWeight="bold"
+                sx={{ borderBottom: "2px solid #000", mb: 3 }}
+              >
+                Cài đặt tài khoản
+              </Typography>
+
+              <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
+                Thông tin cơ bản
+              </Typography>
+
+              <Box sx={{ background: "#fff", borderRadius: 2, p: 3, mb: 3 }}>
+                {/* Avatar upload */}
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  justifyContent="space-between"
+                  sx={{ mb: 2 }}
+                >
+                  <Stack direction="row" alignItems="center" spacing={2}>
+                    <Avatar
+                      src={avatar}
+                      sx={{ width: 70, height: 70, border: "2px solid #ccc" }}
+                    />
+                    <Box>
+                      <Typography fontWeight="500">Ảnh đại diện</Typography>
+                      <Button
+                        variant="contained"
+                        component="label"
+                        color="success"
+                        size="small"
+                        sx={{ mt: 1 }}
+                      >
+                        Cập nhật
+                        <input
+                          hidden
+                          accept="image/*"
+                          type="file"
+                          onChange={handleAvatarChange}
+                        />
+                      </Button>
+                    </Box>
+                  </Stack>
+
+                  {!isEditing && (
+                    <Box>
+                      <Button variant="outlined" color="error" sx={{ mr: 1, borderRadius: 2 }}>
+                        Xóa
+                      </Button>
+                      <Button
+                        variant="contained"
+                        color="success"
+                        onClick={() => setIsEditing(true)}
+                        sx={{ borderRadius: 2 }}
+                      >
+                        Cập nhật
+                      </Button>
+                    </Box>
+                  )}
+                </Stack>
+
+                {[
+                  { label: "Họ và tên", field: "fullName" },
+                  { label: "Giới tính", field: "gender" },
+                  { label: "Ngày sinh", field: "dob" },
+                  { label: "Email", field: "email" },
+                  { label: "Số điện thoại", field: "phone" },
+                ].map(({ label, field }) => (
+                  <InfoRow
+                    key={field}
+                    label={label}
+                    value={userData[field]}
+                    isEditing={isEditing}
+                    onChange={(val) => handleChange(field, val)}
+                  />
+                ))}
+              </Box>
+
+              <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
+                Thông tin đăng nhập
+              </Typography>
+
+              <Box sx={{ background: "#fff", borderRadius: 2, p: 3 }}>
+                {[
+                  { label: "Tên người dùng", field: "username" },
+                  { label: "Mật khẩu", field: "password" },
+                ].map(({ label, field }) => (
+                  <InfoRow
+                    key={field}
+                    label={label}
+                    value={userData[field]}
+                    isEditing={isEditing}
+                    onChange={(val) => handleChange(field, val)}
+                  />
+                ))}
+
+                {isEditing && (
+                  <Stack
+                    direction="row"
+                    spacing={2}
+                    justifyContent="flex-end"
+                    mt={2}
+                  >
+                    <Button variant="outlined" onClick={() => setIsEditing(false)}>
+                      Hủy
+                    </Button>
+                    <Button
+                      variant="contained"
+                      color="success"
+                      onClick={handleSave}
+                    >
+                      Lưu
+                    </Button>
+                  </Stack>
+                )}
+              </Box>
+            </>
+          )}
+
+          {selected === "Thông báo" && (
+            <Box>
+              <Typography
+                variant="h5"
+                fontWeight="bold"
+                sx={{ borderBottom: "2px solid #000", mb: 3 }}
+              >
+                Cài đặt thông báo
+              </Typography>
+
+              {/* STATE HOẶC LOGIC */}
+              {(() => {
+
+
+                // state cho cây trồng và preset
+                console.log(presets[plant]);
+
+                return (
+                  <Box>
+                    {/* CHỌN CÂY */}
+                    <Typography variant="h6" fontWeight="bold" sx={{ mb: 1 }}>
+                      Chọn loại cây
+                    </Typography>
+                    <TextField
+                      select
+                      fullWidth
+                      size="small"
+                      value={plant}
+                      onChange={(e) => setPlant(e.target.value)}
+                      SelectProps={{ native: true }}
+                      sx={{ mb: 3, background: "#fff", borderRadius: 1 }}
+                    >
+                      {Object.keys(presets).map((p) => (
+                        <option key={p} value={p}>
+                          {p}
+                        </option>
+                      ))}
+                    </TextField>
+
+                    {/* DANH SÁCH THÔNG SỐ */}
+                    <Typography
+                      variant="h6"
+                      fontWeight="bold"
+                      sx={{
+                        mb: 2,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      Danh sách cảnh báo thiết lập
+                      <Button variant="contained" color="success" size="small" onClick={handleSavePlant}>
+                        Lưu
+                      </Button>
+                    </Typography>
+
+                    <Box
+                      sx={{
+                        maxHeight: "65vh",            // Giới hạn chiều cao khung hiển thị
+                        overflowY: "auto",            // Cho phép cuộn dọc
+                        pr: 1,                        // chừa khoảng tránh thanh cuộn
+                        scrollbarWidth: "thin",       // Firefox
+                        "&::-webkit-scrollbar": { width: "8px" },  // Chrome
+                        "&::-webkit-scrollbar-thumb": {
+                          backgroundColor: "#a5d6a7",  // màu thanh cuộn
+                          borderRadius: "8px",
+                        },
+                      }}
+                    >
+                      <Stack spacing={2}>
+                        {presets[plant].map((item, index) => (
+                          <Box
+                            key={item.title}
+                            sx={{
+                              background: "#fff",
+                              borderRadius: 2,
+                              p: 2,
+                              boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+                            }}
+                          >
+                            <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1 }}>
+                              {item.title} Settings
+                            </Typography>
+
+                            <Box sx={{ ml: 3 }}>
+                              <Typography variant="body2" sx={{ mb: 1 }}>
+                                • <b>Threshold:</b> Max:{" "}
+                                <TextField
+                                  size="small"
+                                  value={item.max}
+                                  sx={{ width: 100, mx: 1 }}
+                                  onChange={(e) => handleChangeValue(index, "max", e.target.value)}
+                                />
+                                Min:{" "}
+                                <TextField
+                                  size="small"
+                                  value={item.min}
+                                  sx={{ width: 100, mx: 1 }}
+                                  onChange={(e) => handleChangeValue(index, "min", e.target.value)}
+                                />{" "}
+                                {item.unit}
+                              </Typography>
+
+                              <Typography variant="body2">
+                                • <b>Tham số:</b> {item.type}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        ))}
+                      </Stack>
+                    </Box>
+
+                  </Box>
+                );
+              })()}
+            </Box>
+          )}
+
+
+        </Box>
+      </Box>
+    </Box>
+  );
 }
 
-export default SettingPage;
+/* --- COMPONENT HIỂN THỊ THÔNG TIN --- */
+function InfoRow({ label, value, isEditing, onChange }) {
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        py: 1.5,
+        borderBottom: "1px solid #eee",
+      }}
+    >
+      <Typography sx={{ fontWeight: 500 }}>{label}</Typography>
+      {isEditing ? (
+        <TextField
+          size="small"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          sx={{ width: 220 }}
+        />
+      ) : (
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <Typography sx={{ color: "#555" }}>{value}</Typography>
+          <ArrowForwardIosIcon sx={{ fontSize: 14, color: "#aaa" }} />
+        </Stack>
+      )}
+    </Box>
+  );
+}

@@ -5,6 +5,9 @@ from bh1750 import BH1750
 import time, urequests, gc
 import config
 
+print(">>> MAIN.PY đã khởi động <<<")
+
+
 # ==== MQTT (LOCAL, không TLS) ====
 try:
     from umqtt.robust import MQTTClient
@@ -18,7 +21,7 @@ except:
 import ntptime
 
 # ===== CONFIG =====
-API_URL = config.API_URL
+#API_URL = config.API_URL
 SAMPLES = config.SAMPLES
 MAX_ERROR_BEFORE_REPORT = config.MAX_ERROR_BEFORE_REPORT
 WARMUP_SEC = config.WARMUP_SEC
@@ -29,9 +32,21 @@ PORT = config.PORT
 MQTT_TOPIC_PUB = config.MQTT_TOPIC_PUB
 MQTT_TOPIC_SUB = config.MQTT_TOPIC_SUB
 
-# ===== LED =====
-led = Pin(2, Pin.OUT) #D4 GND 3V3
-led.value(1)
+
+
+# ===== LED on board =====
+esp_led = Pin(2, Pin.OUT) #D4
+esp_led.value(1) # off
+
+# ===== LED to control =====
+ctrl_led = Pin(16, Pin.OUT)
+ctrl_led.value(1) # off
+
+
+
+# ===== DEVICE INIT =====
+relayFan = Pin(13, Pin.OUT) # D7
+
 
 # ===== SENSOR INIT =====
 soil_sensor = ADC(0)  # Soil moisture D3 GND 3V3
@@ -47,12 +62,14 @@ roms = ds_sensor.scan()
 
 pwm_pin = Pin(12, Pin.IN)  # MH-Z19B D6 5V GND
 
+
+
 # ===== SHARE DATA =====
 data = {
     "soil_temperature": None,
     "soil_moisture": None,
-    #"air_temperature": None,
-    #"air_humidity": None,
+    "air_temperature": None,
+    "air_humidity": None,
     "light": None,
     "co2": None,
 }
@@ -60,12 +77,13 @@ last_co2 = None
 error_count = 0
 
 
+
 # ===== HELPERS =====
 async def blink_led(times=1, duration=0.2):
     for _ in range(times):
-        led.value(0)
+        esp_led.value(0)
         await asyncio.sleep(duration)
-        led.value(1)
+        esp_led.value(1)
         await asyncio.sleep(duration)
 
 def read_co2_pwm():
@@ -91,9 +109,15 @@ def _on_cmd(topic, msg):
     try:
         if DEBUG: print("[CMD]", topic, msg)
         obj = json.loads(msg)
-        # ví dụ lệnh đơn giản: {"led":1} -> bật LED
+        
+        # Điều khiển Led | ví dụ lệnh đơn giản: {"led":0} -> bật LED
         if obj.get("led") is not None:
-            led.value(0 if obj["led"] else 1)
+            ctrl_led.value(0 if obj["led"] else 1) # ngược lại
+            
+        # Điều khiển Quạt | ví dụ lệnh đơn giản: {"fan":1} -> bật Quạt
+        if obj.get("fan") is not None:
+            fan_state = int(obj["fan"])
+            relayFan.value(fan_state)
     except Exception as e:
         if DEBUG: print("cmd parse err:", e)
 
@@ -156,6 +180,8 @@ def mqtt_publish(payload_dict):
             _mqtt = None
             return False
 
+
+
 # ===== TASKS =====
 async def task_soil_temp():
     while True:
@@ -173,15 +199,15 @@ async def task_soil_moist():
         await asyncio.sleep(3)
 
 
-# async def task_air():
-#     while True:
-#         try:
-#             dht22.measure()
-#             data["air_temperature"] = dht22.temperature()
-#             data["air_humidity"] = dht22.humidity()
-#         except Exception as e:
-#             if DEBUG: print("DHT22 error:", e)
-#         await asyncio.sleep(4)
+async def task_air():
+     while True:
+         try:
+             dht22.measure()
+             data["air_temperature"] = dht22.temperature()
+             data["air_humidity"] = dht22.humidity()
+         except Exception as e:
+             if DEBUG: print("DHT22 error:", e)
+         await asyncio.sleep(4)
 
 
 async def task_light():
@@ -264,7 +290,7 @@ async def main():
     await asyncio.gather(
         task_soil_temp(),
         task_soil_moist(),
-#         task_air(),
+        task_air(),
         task_light(),
         task_co2(),
 #         task_send_api(),
@@ -277,4 +303,5 @@ try:
     asyncio.run(main())
 finally:
     asyncio.new_event_loop()
+
 
