@@ -4,10 +4,10 @@ import { sensorDataModel } from '~/models/SensorData.model'
 import ApiError from '~/utils/ApiError'
 import { StatusCodes } from 'http-status-codes'
 import { userModel } from '~/models/User.model'
-import { historyService } from '~/services/alert.historyService'
+import { historyService } from '~/services/history.service'
 import { PUBLISH_MQTT } from '~/config/mqtt'
 import { BrevoProvider } from '~/providers/Brevo.provider'
-
+import { emitToUser } from '~/sockets/socket'
 
 const registerDevice = async ( userId, reqBody ) => {
   try {
@@ -78,6 +78,18 @@ const saveMqttData = async (deviceId, validateData) => {
     }
     await sensorDataModel.createNew(newData)
 
+    emitToUser(String(sensor.user), 'BE_DATA', {
+      type: 'DATA',
+      sensorId: String(sensor._id),
+      sensorName: sensor.name,
+      deviceId,
+      data: validateData,
+      ts: newData.ts
+    })
+
+    // 👉 SAU ĐÓ mới kiểm ngưỡng (nếu cần)
+    await checkAndCreateAlerts(sensor, validateData)
+  
   } catch (error) { console.log(error.message) }
 }
 
@@ -122,7 +134,16 @@ const processThreshold = async (parameterName, value, thresholds, commands, aler
 
       user && user.email
         ? BrevoProvider.sendEMail(user.email, customSubject, htmlContent)
-        : Promise.resolve()
+        : Promise.resolve(),
+
+      emitToUser(alertPayload.user, 'BE_ALERT', {
+        type: 'ALERT',
+        sensorId: alertPayload.sensor,
+        parameterName,
+        triggeredValue: value,
+        message,
+        timestamp: new Date()
+      })
     ])
   } catch (error) {
     console.error(`Failed to process ${parameterName} alert:`, error)
@@ -131,7 +152,7 @@ const processThreshold = async (parameterName, value, thresholds, commands, aler
 
 const checkAndCreateAlerts = (sensor, data) => {
   const thresholds = sensor.thresholds || {}
-  const { co2, humidity, airTemperature, soilMoisture, soilTemperature, lightIntensity } = thresholds
+  const { light, co2, airTemperature, soil_moisture, soil_temperature, air_temperature, air_humidity } = thresholds
 
   const alertPayload = {
     user: sensor.user,

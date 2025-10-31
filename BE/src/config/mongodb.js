@@ -1,7 +1,6 @@
 import { MongoClient, ServerApiVersion } from 'mongodb'
 import { env } from '~/config/environment'
-import { sensorModel } from '~/models/Sensor.model'
-import { sensorDataModel } from '~/models/SensorData.model'
+
 
 let nckhDatabaseInstance = null
 

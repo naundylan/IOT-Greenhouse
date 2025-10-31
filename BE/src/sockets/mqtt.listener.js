@@ -1,6 +1,7 @@
 import { GET_MQTT, SUBSCRIBE_MQTT } from '~/config/mqtt'
 import { sensorValidation } from '~/validations/sensor.validation'
 import { sensorService } from '~/services/sensor.service'
+import { emitToUser } from './socket'
 
 // Dấu '+' là wildcard cho deviceId
 const DATA_TOPIC = 'smartfarm/+/data'
@@ -23,7 +24,7 @@ export const initializeMqttListener = async () => {
           console.warn(`[MQTT] Topic không hợp lệ: ${topic}`)
           return
         }
-        const deviceId = topicParts[1] 
+        const deviceId = topicParts[1]
 
         // Parse JSON
         let data
