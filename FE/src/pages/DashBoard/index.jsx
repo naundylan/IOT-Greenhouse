@@ -13,7 +13,12 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import QueryStatsIcon from "@mui/icons-material/QueryStats";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import Dot from "@mui/icons-material/FiberManualRecord";
-import axios from "axios";
+import {
+  getDashboardData,
+  toggleLight,
+  toggleFan,
+} from "../services/sensorApi";
+import { getCurrentUser } from "../services/authService";
 import { useNavigate } from "react-router-dom";
 import {
   LineChart, Line, CartesianGrid, XAxis, YAxis,
@@ -23,8 +28,6 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, Button
 } from "@mui/material";
 import { TextField } from "@mui/material";
-
-
 
 
 const METRIC_STATUS_LEVELS = {
@@ -66,35 +69,6 @@ const METRIC_STATUS_LEVELS = {
     { level: 'Bình thường', range: 'N/A', description: 'Thông số trong ngưỡng an toàn.', color: '#66bb6a' }
   ]
 };
-const mockDashboardData = {
-  id: 1,
-  name: "Nhà kính số 1 - Khu A",
-  plant: "Xà Lách 4 Mùa",
-  status: "Tốt",
-  metrics: [
-    { id: 1, label: "CO₂", value: "1100 ppm" },
-    { id: 2, label: "Ánh sáng", value: "6000 lux" },
-    { id: 3, label: "Nhiệt độ không khí", value: "28°C" },
-    { id: 4, label: "Độ ẩm không khí", value: "65%" },
-    { id: 5, label: "Độ ẩm đất", value: "60%" },
-    { id: 6, label: "Nhiệt độ đất", value: "25°C" },
-  ],
-  lightStatus: false,
-  fanStatus: false,
-  notifications: [
-    { id: 1, type: "error", message: "Nhiệt độ không khí vượt ngưỡng 32°C lúc 14:20", time: "2 giờ trước" },
-    { id: 2, type: "warning", message: "Độ ẩm đất giảm xuống 45% lúc 13:15", time: "3 giờ trước" },
-    { id: 3, type: "warning", message: "Ánh sáng đạt 1200 lux lúc 12:30", time: "4 giờ trước" },
-  ],
-  chartData: [
-    { time: "02:00", co2: 30, nhietdokk: 28, nhietdod: 25, anhsang: 2000, doamkk: 65, doamdat: 60 },
-    { time: "06:00", co2: 35, nhietdokk: 30, nhietdod: 26, anhsang: 4000, doamkk: 67, doamdat: 62 },
-    { time: "10:00", co2: 40, nhietdokk: 32, nhietdod: 27, anhsang: 8000, doamkk: 68, doamdat: 63 },
-    { time: "14:00", co2: 45, nhietdokk: 33, nhietdod: 28, anhsang: 9500, doamkk: 69, doamdat: 64 },
-    { time: "18:00", co2: 40, nhietdokk: 31, nhietdod: 26, anhsang: 3000, doamkk: 70, doamdat: 61 },
-    { time: "22:00", co2: 35, nhietdokk: 29, nhietdod: 25, anhsang: 1500, doamkk: 66, doamdat: 59 },
-  ],
-};
 
 function DashboardPage() {
   const [dashboardData, setDashboardData] = useState(null);
@@ -115,7 +89,6 @@ function DashboardPage() {
     setSelectedMetric(metric);
     setOpenDialog(true);
   };
-
   const handleCloseDialog = () => {
     setOpenDialog(false);
     setSelectedMetric(null);
@@ -132,7 +105,10 @@ function DashboardPage() {
     navigate("/login");
     handleCloseMenu();
   };
-
+  const handleHistory = () => {
+    navigate("/history");
+    handleCloseMenu();
+  };
   const [openUserDialog, setOpenUserDialog] = useState(false);
   const handleOpenUserDialog = () => setOpenUserDialog(true);
   const handleCloseUserDialog = () => setOpenUserDialog(false);
@@ -141,14 +117,40 @@ function DashboardPage() {
     // TODO: gửi dữ liệu lên server
     handleCloseUserDialog();
   };
+
+
+  // ...
+
   useEffect(() => {
-    console.warn("📊 Dashboard đang chạy ở chế độ MOCKUP.");
-    const timer = setTimeout(() => {
-      setDashboardData(mockDashboardData);
-      setLoading(false);
-    }, 800);
-    return () => clearTimeout(timer);
-  }, []);
+    const fetchData = async () => {
+      try {
+        // 🧠 Lấy thông tin người dùng
+        const userRes = await getCurrentUser();
+        setUserInfo({
+          name: userRes.data.name || "Chưa có tên",
+          gender: userRes.data.gender || "Không xác định",
+          dob: userRes.data.dob || "Không rõ",
+          email: userRes.data.email,
+        });
+
+        // 🌱 Lấy dữ liệu cảm biến
+        const dataRes = await getDashboardData();
+        setDashboardData(dataRes.data);
+
+        setLoading(false);
+      } catch (err) {
+        console.error("❌ Lỗi khi tải Dashboard:", err);
+
+        // Nếu lỗi xác thực → logout
+        if (err.response?.status === 401) {
+          localStorage.removeItem("userToken");
+          navigate("/login");
+        }
+      }
+    };
+
+    fetchData();
+  }, [navigate]);
 
 
   // 💡 Bật/Tắt đèn
@@ -158,9 +160,7 @@ function DashboardPage() {
     setIsSwitchLoading(true);
 
     try {
-      // Giả lập API
-      await axios.patch(`/api/greenhouses/${dashboardData.id}/light`, { status: newStatus });
-      // Update local state
+      await toggleLight(newStatus);
       setDashboardData((prev) => ({ ...prev, lightStatus: newStatus }));
     } catch (err) {
       console.error("⚠️ Lỗi khi đổi trạng thái đèn:", err);
@@ -168,22 +168,23 @@ function DashboardPage() {
       setIsSwitchLoading(false);
     }
   };
-  //Bật quạt
+
+  // 🌬️ Bật/Tắt quạt
   const handleToggleFan = async () => {
     if (!dashboardData) return;
-    const newStatus = !dashboardData.lightStatus;
+    const newStatus = !dashboardData.fanStatus;
     setIsSwitchLoading(true);
+
     try {
-      // Giả lập API
-      await axios.patch(`/api/greenhouses/${dashboardData.id}/light`, { status: newStatus });
-      // Update local state
-      setDashboardData((prev) => ({ ...prev, lightStatus: newStatus }));
+      await toggleFan(newStatus);
+      setDashboardData((prev) => ({ ...prev, fanStatus: newStatus }));
     } catch (err) {
-      console.error("⚠️ Lỗi khi đổi trạng thái đèn:", err);
+      console.error("⚠️ Lỗi khi đổi trạng thái quạt:", err);
     } finally {
       setIsSwitchLoading(false);
     }
   };
+
 
   if (loading) {
     return (
@@ -233,7 +234,8 @@ function DashboardPage() {
               <MenuItem onClick={handleLogout}>Đăng xuất</MenuItem>
               <Divider />
               <MenuItem onClick={handleGoToSettings}>Cài Đặt</MenuItem>
-
+              <Divider />
+              <MenuItem onClick={handleHistory}>Lịch sử</MenuItem>
             </Menu>
           </Box>
         </Toolbar>
@@ -439,7 +441,7 @@ function DashboardPage() {
         </Card>
       </Box>
 
-{/* 💡 Bật tắt các thông số */}
+      {/* 💡 Bật tắt các thông số */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
         <DialogTitle sx={{ fontWeight: "bold", color: "#2e7d32" }}>
           {selectedMetric?.label}
@@ -483,10 +485,10 @@ function DashboardPage() {
       </Dialog>
 
 
-{/* 💡 Thông tin người dùng */}
-      <Dialog open={openUserDialog} onClose={handleCloseUserDialog} sx= {{ borderRadius : "8px"}}>
+      {/* 💡 Thông tin người dùng */}
+      <Dialog open={openUserDialog} onClose={handleCloseUserDialog} sx={{ borderRadius: "8px" }}>
         <DialogTitle>Thông tin người dùng</DialogTitle>
-        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 3, width: 500 , borderRadius : 4 , overflow: "visible"}}>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 3, width: 500, borderRadius: 4, overflow: "visible" }}>
           <TextField
             label="Họ và tên"
             fullWidth
@@ -510,8 +512,8 @@ function DashboardPage() {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseUserDialog} sx= {{ borderRadius : "8px"}}>Hủy</Button>
-          <Button variant="contained" color="primary" onClick={handleUpdateProfile} sx= {{ borderRadius : "8px"}}>
+          <Button onClick={handleCloseUserDialog} sx={{ borderRadius: "8px" }}>Hủy</Button>
+          <Button variant="contained" color="primary" onClick={handleUpdateProfile} sx={{ borderRadius: "8px" }}>
             Lưu thay đổi
           </Button>
         </DialogActions>
