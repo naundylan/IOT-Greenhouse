@@ -1,6 +1,7 @@
 import { Server } from 'socket.io'
 import { corsOptions } from '~/config/cors'
 import jwt from 'jsonwebtoken'
+import { env } from '~/config/environment'
 
 export let io = null
 
@@ -11,7 +12,8 @@ export function initSocket(server) {
     // Nhận token sau khi connect để join room theo user
     socket.on('AUTH', (token) => {
       try {
-        const { userId } = jwt.verify(token, process.env.JWT_SECRET)
+        const { _id:userId } = jwt.verify(token, env.SECRET_KEY)
+        if (!userId) throw new Error('Invalid token payload')
         socket.join(`user:${userId}`)
         socket.emit('AUTH_OK')
       } catch {
