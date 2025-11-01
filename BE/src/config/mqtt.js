@@ -42,11 +42,11 @@ export const GET_MQTT = () => {
 
 //Chuyển API callback thành promise để dùng async await
 export const PUBLISH_MQTT = (topic, payload, options = { qos: 0, retain: false }) =>
-  new Promise((resolve, reject) => 
+  new Promise((resolve, reject) =>
     GET_MQTT().publish(topic, payload, options, (err) => err ? reject(err) : resolve())
-)
+  )
 
 export const SUBSCRIBE_MQTT = (topic, options = { qos: 0 }) =>
   new Promise((resolve, reject) =>
     GET_MQTT().subscribe(topic, options, (err, granted) => err ? reject(err) : resolve(granted))
-)
+  )

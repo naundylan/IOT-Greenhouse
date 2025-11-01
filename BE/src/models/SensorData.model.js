@@ -10,6 +10,8 @@ const SENSOR_DATA_COLLECTION_SCHEMA = Joi.object({
   co2: Joi.number().allow(null).default(null),
   soil_moisture: Joi.number().allow(null).default(null),
   soil_temperature: Joi.number().allow(null).default(null),
+  air_temperature: Joi.number().allow(null).default(null),
+  air_humidity: Joi.number().allow(null).default(null),
 
   serverReceivedAt: Joi.date().timestamp('javascript').default(Date.now),
   createdAt: Joi.date().timestamp('javascript').default(Date.now)
