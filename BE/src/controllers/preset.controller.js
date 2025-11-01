@@ -12,7 +12,7 @@ const getDetails = async(req, res, next) => {
   try {
     const presetId = req.params.id
     const result = await presetService.getDetails(presetId)
-    res.status(StatusCodes.CREATED).json(result)
+    res.status(StatusCodes.OK).json(result)
   } catch (error) { next(error) }
 }
 
@@ -20,7 +20,7 @@ const update = async(req, res, next) => {
   try {
     const presetId = req.params.id
     const result = await presetService.update(presetId, req.body)
-    res.status(StatusCodes.CREATED).json(result)
+    res.status(StatusCodes.OK).json(result)
   } catch (error) { next(error) }
 }
 

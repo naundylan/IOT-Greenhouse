@@ -1,13 +1,15 @@
 import Joi from 'joi'
 import { ObjectId } from 'mongodb'
 import { GET_DB } from '~/config/mongodb'
+import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validator'
 
 const SENSOR_COLLECTION_NAME = 'sensors'
 const SENSOR_COLLECTION_SCHEMA = Joi.object({
   user: Joi.string().required(),
   deviceId: Joi.string().required().trim().strict(),
   name: Joi.string().required().trim().strict(),
-
+  plantId: Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE).allow(null).default(null),
+  thresholds: Joi.object().default({}),
   createdAt: Joi.date().timestamp('javascript').default(Date.now),
   updatedAt: Joi.date().timestamp('javascript').default(null),
   _destroy: Joi.boolean().default(false)
@@ -62,6 +64,37 @@ const findOneUserAndDeviceId = async(userId, deviceId) => {
   } catch (error) { throw new Error(error) }
 }
 
+const update = async (sensorId, updateData) => {
+  try {
+    Object.keys(updateData).forEach(field => {
+      if (SENSOR_INVALID_UPDATE_FIELDS.includes(field)) {
+        delete updateData[field]
+      }
+    })
+
+    if (updateData.plantId) {
+      updateData.plantId = new ObjectId(updateData.plantId)
+    }
+
+    const result = await GET_DB().collection(SENSOR_COLLECTION_NAME).findOneAndUpdate(
+      { _id: new ObjectId(sensorId), _destroy: false },
+      { $set: { ...updateData, updatedAt: Date.now() } },
+      { returnDocument: 'after' }
+    )
+    return result.value
+  } catch (error) { throw new Error(error) }
+}
+
+const updateManyByPlantId = async (plantId, updateData) => {
+  try {
+    const result = await GET_DB().collection(SENSOR_COLLECTION_NAME).updateMany(
+      { plantId: new ObjectId(plantId), _destroy: false },
+      { $set: { ...updateData, updatedAt: Date.now() } }
+    )
+    return result
+  } catch (error) { throw new Error(error) }
+}
+
 export const sensorModel = {
   SENSOR_COLLECTION_NAME,
   SENSOR_COLLECTION_SCHEMA,
@@ -69,5 +102,7 @@ export const sensorModel = {
   createNew,
   findOneByDeviceId,
   findOneByUserId,
-  findOneUserAndDeviceId
+  findOneUserAndDeviceId,
+  update,
+  updateManyByPlantId
 }

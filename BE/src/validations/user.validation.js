@@ -1,7 +1,7 @@
 import Joi from 'joi'
 import ApiError from '~/utils/ApiError'
 import { StatusCodes } from 'http-status-codes'
-import { EMAIL_RULE, EMAIL_RULE_MESSAGE, PASSWORD_RULE, PASSWORD_RULE_MESSAGE, USERNAME_RULE, USERNAME_RULE_MESSAGE } from '~/utils/validator'
+import { EMAIL_RULE, EMAIL_RULE_MESSAGE, PASSWORD_RULE, PASSWORD_RULE_MESSAGE, PHONE_RULE, USERNAME_RULE, USERNAME_RULE_MESSAGE } from '~/utils/validator'
 
 const createNew = async (req, res, next) => {
   const correctCondition = Joi.object({
@@ -83,7 +83,10 @@ const update = async (req, res, next) => {
   const correctCondition = Joi.object({
     displayName: Joi.string().trim().strict(),
     current_password: Joi.string().pattern(PASSWORD_RULE).message( `current_password: ${PASSWORD_RULE_MESSAGE}`),
-    new_password: Joi.string().pattern(PASSWORD_RULE).message(`new_password: ${PASSWORD_RULE_MESSAGE}`)
+    new_password: Joi.string().pattern(PASSWORD_RULE).message(`new_password: ${PASSWORD_RULE_MESSAGE}`),
+    gender: Joi.string().valid('male', 'female', 'non-binary'),
+    phoneNumber: Joi.string().pattern(PHONE_RULE).allow(null),
+    dateOfBirth: Joi.date().max('now').allow(null)
   })
 
   try {

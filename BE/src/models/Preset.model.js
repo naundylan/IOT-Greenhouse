@@ -58,7 +58,7 @@ const findOneById = async(id) => {
 const deleteManyByPlantId = async(plantId) => {
   try {
     return await GET_DB().collection(PRESET_COLLECTION_NAME).deleteMany({
-      _id: new ObjectId(plantId)
+      plantId: new ObjectId(plantId)
     })
   } catch (error) {
     throw new Error(error)
@@ -69,7 +69,7 @@ const update = async(presetId, updateData) => {
   try {
     Object.keys(updateData).forEach(fieldName => {
       if ( INVALID_UPDATE_FIELDS.includes(fieldName)) {
-        delete updateData(fieldName)
+        delete updateData[fieldName]
       }
     })
 
@@ -78,7 +78,7 @@ const update = async(presetId, updateData) => {
       { $set: updateData },
       { returnDocument: 'after' } // trả về sau khi cập nhật
     )
-    return result
+    return result.value
   } catch (error) {
     throw new Error(error)
   }

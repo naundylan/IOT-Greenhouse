@@ -7,11 +7,10 @@ const HISTORY_COLLECTION_NAME = 'History'
 const HISTORY_COLLECTION_SCHEMA = Joi.object({
   userId: Joi.string().required().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
   sensorId: Joi.string().required().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
-  presetId: Joi.string().required().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE),
+  sensorName: Joi.string().trim(),
   parameterName: Joi.string().required().trim(),
   triggeredValue: Joi.number().required(),
   message: Joi.string().allow('').default(''),
-  thresholdStatus: Joi.string().valid('HIGH', 'LOW', 'NORMAL').required(),
   createdAt: Joi.date().timestamp('javascript').default(Date.now),
   _destroy: Joi.boolean().default(false)
 })
@@ -29,7 +28,6 @@ const createNew = async(data) => {
       ...validData,
       userId: new ObjectId(validData.userId),
       sensorId: new ObjectId(validData.sensorId),
-      presetId: new ObjectId(validData.presetId)
     }
     return await GET_DB().collection(HISTORY_COLLECTION_NAME).insertOne(createPlant)
   } catch (error) {
