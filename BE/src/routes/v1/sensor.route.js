@@ -15,5 +15,8 @@ Router.route('/:deviceId/data')
   .get(
     auth.isAuthorized, sensorValidation.getSensorData, sensorController.getSensorData
   )
+//sensor dùng cho plant nào ?
+Router.route('/:deviceId/assignPlant')
+  .put(auth.isAuthorized, sensorController.assignPlant)
 
 export const sensorRoute = Router
