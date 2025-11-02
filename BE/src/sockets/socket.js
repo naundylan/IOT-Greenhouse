@@ -2,6 +2,10 @@ import { Server } from 'socket.io'
 import { corsOptions } from '~/config/cors'
 import jwt from 'jsonwebtoken'
 import { env } from '~/config/environment'
+import ApiError from '~/utils/ApiError'
+import { StatusCodes } from 'http-status-codes'
+import { PUBLISH_MQTT } from '~/config/mqtt'
+
 
 export let io = null
 
@@ -16,9 +20,22 @@ export function initSocket(server) {
         if (!userId) throw new Error('Invalid token payload')
         socket.join(`user:${userId}`)
         socket.emit('AUTH_OK')
-      } catch {
+      }
+      catch {
         socket.emit('AUTH_FAIL')
         socket.disconnect(true)
+      }
+    })
+    socket.on('FE_COMMAND', (data) => {
+      try {
+        const { deviceId, command } = data
+        if ( !deviceId || !command) throw new Error('Invalid deviceId or command')
+        const commandTopic = `smartfarm/${deviceId}/commands`
+        const payload = JSON.stringify({ command: command })
+
+        PUBLISH_MQTT(commandTopic, payload)
+      } catch (error) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, error.message)
       }
     })
     socket.on('disconnect', () => {

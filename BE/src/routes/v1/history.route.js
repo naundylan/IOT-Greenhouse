@@ -11,4 +11,6 @@ Router.route('/')
 Router.route('/:id')
   .delete(auth.isAuthorized, historyValidation.deleteAlert, historyController.deleteAlert)
 
+Router.route('')
+
 export const historyRouter = Router

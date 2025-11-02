@@ -30,12 +30,24 @@ const getSensorData = async (req, res, next) => {
   } catch (error) { next(error) }
 }
 
+const getHourlyData = async (req, res, next) => {
+  try {
+    const userId = req.jwtDecoded._id
+    const { deviceId } = req.params
+    const { day } = req.query
+
+    const sensor = await sensorModel.findOneUserAndDeviceId(userId, deviceId)
+    if (!sensor) throw new ApiError(StatusCodes.NOT_FOUND, 'SENSOR NOT FOUND')
+
+    const data = await sensorService.getHourlyData(day, sensor._id)
+    res.status(StatusCodes.OK).json(data)
+  } catch (error) { next(error) }
+}
+
 const assignPlant = async (req, res, next) => {
   try {
     const { deviceId } = req.params
     const { plantId } = req.body
-    console.log(req.body)
-    console.log(req.params)
     const sensor = await sensorModel.findOneByDeviceId(deviceId)
     if (!sensor)
       throw new ApiError(StatusCodes.NOT_FOUND, 'Sensor not found')
@@ -46,9 +58,40 @@ const assignPlant = async (req, res, next) => {
   }
 }
 
+const exportData = async (req, res, next) => {
+  try {
+    const userId = req.jwtDecoded._id
+    const { deviceId } = req.params
+    const { day } = req.query
+    const sensor = await sensorModel.findOneUserAndDeviceId(userId, deviceId)
+    if (!sensor)
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Sensor not found')
+    const buffer = await sensorService.exportData(day, sensor._id)
+
+    const fileName = `Baocao_${deviceId}_${day}`
+    //cấu hình file excel
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    //Cấu hình tải file về
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${fileName}"`
+    )
+
+    //Gửi file
+    res.send(buffer)
+  } catch (error) {
+    next (error)
+  }
+}
+
 export const sensorController = {
   registerDevice,
   getMySensors,
   getSensorData,
-  assignPlant
+  assignPlant,
+  getHourlyData,
+  exportData
 }

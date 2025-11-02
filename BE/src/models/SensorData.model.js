@@ -54,10 +54,48 @@ const countDataBySensor = async (sensorId) => {
   } catch (error) { throw new Error(error) }
 }
 
+const getHourlyData = async (day, sensorId) => {
+  try {
+    const pipeline = [
+      { $match: {
+        sensor: new ObjectId(sensorId),
+        time: { $regex: `^${day}` } } },
+      { $addFields: { convertedTime: { $toDate: '$time' } } },
+      { $group: {
+        _id: {
+          hour: { $hour: { date: '$convertedTime' } }
+        },
+        avg_light: { $avg: '$light' },
+        avg_co2: { $avg: '$co2' },
+        avg_soil_moisture: { $avg: '$soil_moisture' },
+        avg_soil_temperature: { $avg: '$soil_temperature' },
+        avg_air_temperature: { $avg: '$air_temperature' },
+        avg_air_humidity: { $avg: '$air_humidity' }
+      }
+      },
+      { $sort: { '_id.hour': 1 } },
+      { $project: {
+        _id: 0, // ẩn id
+        time: { $concat: [{ $toString: '$_id.hour' }, ':00'] },
+
+        light: { $round: ['$avg_light', 2] },
+        co2: { $round: ['$avg_co2', 2] },
+        soil_moisture: { $round: ['$avg_soil_moisture', 2] },
+        soil_temperature: { $round: ['$avg_soil_temperature', 2] },
+        air_temperature: { $round: ['$avg_air_temperature', 2] },
+        air_humidity: { $round: ['$avg_air_humidity', 2] }
+      } }
+    ]
+    const data = await GET_DB().collection(sensorDataModel.SENSOR_DATA_COLLECTION_NAME).aggregate(pipeline).toArray()
+    return data
+  } catch (error) { throw new Error(error)}
+}
+
 export const sensorDataModel = {
   SENSOR_DATA_COLLECTION_NAME,
   SENSOR_DATA_COLLECTION_SCHEMA,
   createNew,
   findDataBySensor,
-  countDataBySensor
+  countDataBySensor,
+  getHourlyData
 }
