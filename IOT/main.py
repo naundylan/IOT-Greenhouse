@@ -45,7 +45,7 @@ ctrl_led.value(1) # off
 
 
 # ===== DEVICE INIT =====
-relayFan = Pin(13, Pin.OUT) # D7
+relayFan = Pin(13, Pin.OUT, value=0) # D7
 
 
 # ===== SENSOR INIT =====
@@ -107,17 +107,22 @@ _mqtt = None
 
 def _on_cmd(topic, msg):
     try:
-        if DEBUG: print("[CMD]", topic, msg)
+        if DEBUG: print(f"[CMD]{msg.decode()}", topic, msg)
         obj = json.loads(msg)
         
+        command = obj.get('command')
         # Điều khiển Led | ví dụ lệnh đơn giản: {"led":0} -> bật LED
-        if obj.get("led") is not None:
-            ctrl_led.value(0 if obj["led"] else 1) # ngược lại
+#         if obj.get("led") is not None:
+#             ctrl_led.value(0 if obj["led"] else 1) # ngược lại
             
         # Điều khiển Quạt | ví dụ lệnh đơn giản: {"fan":1} -> bật Quạt
-        if obj.get("fan") is not None:
-            fan_state = int(obj["fan"])
-            relayFan.value(fan_state)
+        if command == 'FAN_ON':
+            print("Lệnh: Bật quạt (FAN_ON)")
+            relayFan.value(1) # Bật (Value 1 là ON)
+        
+        elif command == 'FAN_OFF':
+            print("Lệnh: Tắt quạt (FAN_OFF)")
+            relayFan.value(0)
     except Exception as e:
         if DEBUG: print("cmd parse err:", e)
 

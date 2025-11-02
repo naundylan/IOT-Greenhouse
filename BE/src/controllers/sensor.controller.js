@@ -1,5 +1,7 @@
 import { StatusCodes } from 'http-status-codes'
 import { sensorService } from '~/services/sensor.service'
+import ApiError from '~/utils/ApiError'
+import { sensorModel } from '~/models/Sensor.model'
 
 const registerDevice = async (req, res, next) => {
   try {
@@ -28,8 +30,25 @@ const getSensorData = async (req, res, next) => {
   } catch (error) { next(error) }
 }
 
+const assignPlant = async (req, res, next) => {
+  try {
+    const { deviceId } = req.params
+    const { plantId } = req.body
+    console.log(req.body)
+    console.log(req.params)
+    const sensor = await sensorModel.findOneByDeviceId(deviceId)
+    if (!sensor)
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Sensor not found')
+    const updatedSensor = await sensorService.assignPlant(sensor._id, plantId)
+    res.status(StatusCodes.OK).json(updatedSensor)
+  } catch (error) {
+    next(error)
+  }
+}
+
 export const sensorController = {
   registerDevice,
   getMySensors,
-  getSensorData
+  getSensorData,
+  assignPlant
 }

@@ -42,7 +42,9 @@ const mqttSchemaData = Joi.object({
   light: Joi.number().optional().allow(null),
   co2: Joi.number().optional().allow(null),
   soil_moisture: Joi.number().optional().allow(null),
-  soil_temperature: Joi.number().optional().allow(null)
+  soil_temperature: Joi.number().optional().allow(null),
+  air_temperature: Joi.number().optional().allow(null),
+  air_humidity: Joi.number().optional().allow(null)
 }).strict()
 
 const validateMqttSensorData = (payload) => {

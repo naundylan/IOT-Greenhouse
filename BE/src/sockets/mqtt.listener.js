@@ -1,6 +1,7 @@
 import { GET_MQTT, SUBSCRIBE_MQTT } from '~/config/mqtt'
 import { sensorValidation } from '~/validations/sensor.validation'
 import { sensorService } from '~/services/sensor.service'
+import { emitToUser } from './socket'
 
 // Dấu '+' là wildcard cho deviceId
 const DATA_TOPIC = 'smartfarm/+/data'

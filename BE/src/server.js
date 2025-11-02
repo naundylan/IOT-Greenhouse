@@ -7,8 +7,10 @@ import { CONNECT_DB, CLOSE_DB } from '~/config/mongodb'
 import { env } from '~/config/environment'
 import { errorHandling } from './middlewares/errorHandling'
 import cookieParser from 'cookie-parser'
-
+import { CONNECT_MQTT, CLOSE_MQTT } from './config/mqtt'
 import { initializeMqttListener } from './sockets/mqtt.listener'
+import http from 'http'
+import { initSocket } from './sockets/socket'
 
 const START_SERVER =() => {
   const app = express()
@@ -28,22 +30,23 @@ const START_SERVER =() => {
 
   app.use(errorHandling)
 
-  app.get('/', (req, res) => {
-    res.end('<h1> Hello Word! </h1><hr>')
-  })
-  app.listen(env.APP_PORT, env.APP_HOST, () => {
+  const server = http.createServer(app)
+  initSocket(server)
+
+  server.listen(env.APP_PORT, env.APP_HOST, () => {
     console.log(`Starting server host: ${env.APP_HOST} and port: ${env.APP_PORT}`)
   })
+
   exitHook(() => {
     CLOSE_DB()
-   /* CLOSE_MQTT()*/
+    CLOSE_MQTT()
   })
 }
 
 (async () => {
   try {
     await CONNECT_DB()
-    /*await CONNECT_MQTT()*/
+    await CONNECT_MQTT()
 
     await initializeMqttListener()
 
