@@ -20,3 +20,6 @@ export const ALLOWED_COMMON_FILE_TYPES = ['image/jpeg', 'image/jpg', 'image/png'
 
 export const DEVICE_ID = 'Device ID is required.'
 export const DEVICE_NAME = 'Device Name is required.'
+
+export const DAY_RULE = /^\d{4}-\d{2}-\d{2}$/
+export const DATE_RULE_MESSAGE = 'Day must be in YYYY-MM-DD format'
