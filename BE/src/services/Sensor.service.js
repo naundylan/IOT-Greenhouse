@@ -44,28 +44,16 @@ const getMySensors = async ( userId ) => {
   } catch (error) { throw error }
 }
 
-const getSensorData = async ( userId, deviceId, { page, limit } ) => {
+const getSensorData = async ( userId, deviceId ) => {
   try {
     const sensor = await sensorModel.findOneUserAndDeviceId(userId, deviceId)
     if (!sensor) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'SENSOR NOT FOUND')
     }
 
-    const skip = (page - 1) * limit
+    const data = await sensorDataModel.findDataBySensor(sensor._id)
 
-    const data = await sensorDataModel.findDataBySensor(sensor._id, skip, limit)
-    const total = await sensorDataModel.countDataBySensor(sensor._id)
-
-    return {
-      sensorInfo: sensor,
-      data,
-      pagination: {
-        totalItems: total,
-        currentPage: page,
-        itemsPerPage: limit,
-        totalPages: Math.ceil(total/limit)
-      }
-    }
+    return data
   } catch (error) { throw error }
 }
 

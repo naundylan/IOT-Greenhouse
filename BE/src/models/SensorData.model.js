@@ -34,13 +34,11 @@ const createNew = async (data) => {
   } catch (error) { throw new Error(error) }
 }
 
-const findDataBySensor = async (sensorId, skip = 0, limit = 20) => {
+const findDataBySensor = async (sensorId) => {
   try {
     const result = await GET_DB().collection(SENSOR_DATA_COLLECTION_NAME)
       .find({ sensor: new ObjectId(sensorId) })
       .sort({ time: -1 }) // Mới nhất lên đầu
-      .skip(skip)
-      .limit(limit)
       .toArray()
     return result
   } catch (error) { throw new Error(error) }
