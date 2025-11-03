@@ -10,6 +10,7 @@ import { historyService } from '~/services/history.service'
 import { PUBLISH_MQTT } from '~/config/mqtt'
 import { BrevoProvider } from '~/providers/Brevo.provider'
 import { emitToUser } from '~/sockets/socket'
+import ExcelJs from 'exceljs'
 
 
 const registerDevice = async ( userId, reqBody ) => {
@@ -43,28 +44,16 @@ const getMySensors = async ( userId ) => {
   } catch (error) { throw error }
 }
 
-const getSensorData = async ( userId, deviceId, { page, limit } ) => {
+const getSensorData = async ( userId, deviceId ) => {
   try {
     const sensor = await sensorModel.findOneUserAndDeviceId(userId, deviceId)
     if (!sensor) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'SENSOR NOT FOUND')
     }
 
-    const skip = (page - 1) * limit
+    const data = await sensorDataModel.findDataBySensor(sensor._id)
 
-    const data = await sensorDataModel.findDataBySensor(sensor._id, skip, limit)
-    const total = await sensorDataModel.countDataBySensor(sensor._id)
-
-    return {
-      sensorInfo: sensor,
-      data,
-      pagination: {
-        totalItems: total,
-        currentPage: page,
-        itemsPerPage: limit,
-        totalPages: Math.ceil(total/limit)
-      }
-    }
+    return data
   } catch (error) { throw error }
 }
 
@@ -233,11 +222,53 @@ const checkAndCreateAlerts = (sensor, data) => {
   processThreshold('Ánh sáng', data.light, light, { high: 'LAMP_ON', low: 'LAMP_OFF', off: 'LAMP_OFF' }, alertPayload, commandTopic)
 }
 
+//query lấy lịch sử theo giờ
+const getHourlyData = async (day, sensorId ) => {
+  try {
+    const data = await sensorDataModel.getHourlyData(day, sensorId)
+    return data
+  } catch (error) {
+    throw (error)
+  }
+}
+
+const exportData = async (day, sensorId) => {
+  try {
+    const data = await sensorDataModel.getHourlyData(day, sensorId)
+
+    const workbook = new ExcelJs.Workbook()
+    workbook.creator = 'Smart Farm'
+    workbook.created = new Date()
+    const worksheet = workbook.addWorksheet(`Dữ liệu - ${day}`)
+
+    worksheet.columns = [
+      { header: 'Giờ', key: 'time', width: 15 },
+      { header: 'Nhiệt độ KK TB (°C)', key: 'air_temperature', width: 20 },
+      { header: 'Độ ẩm KK TB (%)', key: 'air_humidity', width: 20 },
+      { header: 'CO2 TB (ppm)', key: 'co2', width: 15 },
+      { header: 'Ánh sáng TB (lux)', key: 'light', width: 15 },
+      { header: 'Nhiệt độ đất TB (°C)', key: 'soil_temperature', width: 20 },
+      { header: 'Độ ẩm đất TB (%)', key: 'soil_moisture', width: 20 }
+    ]
+    // in đậm tiêu đề
+    worksheet.getRow(1).font = { bold: true }
+    // insert data
+    worksheet.addRows(data)
+
+    const buffer = await workbook.xlsx.writeBuffer()
+    return buffer
+  } catch (error) {
+    throw (error)
+  }
+}
+
 export const sensorService = {
   registerDevice,
   getMySensors,
   getSensorData,
   saveMqttData,
   checkAndCreateAlerts,
-  assignPlant
+  assignPlant,
+  getHourlyData,
+  exportData
 }

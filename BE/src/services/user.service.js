@@ -166,26 +166,25 @@ const update = async (userId, reqBody, userAvtarFile) => {
     if (!existUser.isActive) throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'YOUR ACCOUNT IS NOT ACTIVE')
 
     //Khởi tạo update user
-    let updateUser = {}
+    let updatePayload = { ...reqBody }
     //Trường hợp change password
-    if (reqBody.current_password && reqBody.new_password) {
+    if (updatePayload.current_password && updatePayload.new_password) {
       //kiểm tra current_password đúng hay không ?
       if (!bcryptjs.compareSync(reqBody.current_password, existUser.password)) {
         throw new ApiError(StatusCodes.NOT_ACCEPTABLE, 'YOUR CURRENT PASSWORD IS INCORRECT')
       }
-      updateUser = await userModel.update(existUser._id, {
-        password: bcryptjs.hashSync(reqBody.new_password, 8)
-      })
-    } else if (userAvtarFile) {
+      updatePayload.password = bcryptjs.hashSync(reqBody.new_password, 8)
+      //xóa các trường tạm thời
+      delete updatePayload.current_password
+      delete updatePayload.new_password
+    }
+    if (userAvtarFile) {
       // Trường hợp update avatar cloudinary
       const uploadResult = await CloudinaryProvider.streamUpload(userAvtarFile.buffer, 'users')
       // Lưu url ảnh vào db
-      updateUser = await userModel.update(existUser._id, { avatar: uploadResult.secure_url })
-    } else {
-      // Trường hợp update thông tin khác
-      updateUser = await userModel.update(existUser._id, reqBody)
+      updatePayload.avatar = uploadResult.secure_url
     }
-
+    const updateUser = await userModel.update(existUser._id, updatePayload)
     return pickUser(updateUser)
   } catch (error) {throw error}
 }
