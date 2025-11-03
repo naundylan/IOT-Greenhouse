@@ -23,9 +23,8 @@ const getSensorData = async (req, res, next) => {
   try {
     const userId = req.jwtDecoded._id
     const { deviceId } = req.params
-    const { page, limit } = req.query
 
-    const sensorData = await sensorService.getSensorData( userId, deviceId, { page, limit } )
+    const sensorData = await sensorService.getSensorData( userId, deviceId )
     res.status(StatusCodes.OK).json(sensorData)
   } catch (error) { next(error) }
 }

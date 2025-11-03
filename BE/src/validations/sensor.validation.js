@@ -22,15 +22,8 @@ const getSensorData = async (req, res, next) => {
   const paramSchema = Joi.object({
     deviceId: Joi.string().required().trim().message(DEVICE_ID)
   })
-  const querySchema = Joi.object({
-    page: Joi.number().integer().min(1).default(1),
-    limit: Joi.number().integer().min(1).max(100).default(20)
-  })
-
   try {
     await paramSchema.validateAsync(req.params, { abortEarly: false })
-    req.query = await querySchema.validateAsync(req.query, { abortEarly: false })
-
     next()
   } catch (error) {
     next(new ApiError(StatusCodes.UNPROCESSABLE_ENTITY, error.message))
