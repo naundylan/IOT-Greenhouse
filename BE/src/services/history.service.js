@@ -13,15 +13,14 @@ const createNew = async (payload) => {
   }
 }
 
-const getDetails = async (userId, { page, limit }) => {
+const getDetails = async (userId ) => {
   try {
-    const skip = (page - 1) * limit
-    const data = await historyModel.getDetails(userId, skip, limit)
+    const data = await historyModel.getDetails(userId)
     if (!data || data.length === 0)
-      throw new ApiError(StatusCodes.NOT_FOUND, 'History not found')
+      return {}
 
     const groupedByDate = data.reduce((acc, item) => {
-      const dateObj = new Date(item.time)
+      const dateObj = new Date(item.createdAt)
 
       const dateKey = dateObj.toLocaleDateString('vi-VN', {
         timeZone: 'Asia/Ho_Chi_Minh',

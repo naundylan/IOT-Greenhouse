@@ -11,6 +11,7 @@ import { CONNECT_MQTT, CLOSE_MQTT } from './config/mqtt'
 import { initializeMqttListener } from './sockets/mqtt.listener'
 import http from 'http'
 import { initSocket } from './sockets/socket'
+import { swaggerDocs } from './config/swagger'
 
 const START_SERVER =() => {
   const app = express()
@@ -30,6 +31,8 @@ const START_SERVER =() => {
 
   app.use(errorHandling)
 
+  swaggerDocs(app, env.WEBSITE_DOMAIN_DEV)
+
   const server = http.createServer(app)
   initSocket(server)
 
@@ -39,16 +42,16 @@ const START_SERVER =() => {
 
   exitHook(() => {
     CLOSE_DB()
-    CLOSE_MQTT()
+    // CLOSE_MQTT()
   })
 }
 
 (async () => {
   try {
     await CONNECT_DB()
-    await CONNECT_MQTT()
+    // await CONNECT_MQTT()
 
-    await initializeMqttListener()
+    // await initializeMqttListener()
 
     START_SERVER()
   } catch (err) {
