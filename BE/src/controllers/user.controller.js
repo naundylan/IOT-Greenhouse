@@ -20,7 +20,7 @@ const verifyAccount = async ( req, res, next) => {
 const login = async ( req, res, next) => {
   try {
     const result = await userService.login(req.body)
-    //Thời gian sống cokkie khác token kiểu thời gian sống web
+    //Thời gian sống cookie khác token kiểu thời gian sống web
     res.cookie('accessToken', result.accessToken, {
       httpOnly: true,
       secure: true,
@@ -83,11 +83,11 @@ const refreshToken = async (req, res, next) => {
   }
 }
 
-const update = async (req, res, next) => {
+const updateUser = async (req, res, next) => {
   try {
     const userId = req.jwtDecoded._id
     const userAvtarFile = req.file
-    const updatedUser = await userService.update(userId, req.body, userAvtarFile)
+    const updatedUser = await userService.updateUser(userId, req.body, userAvtarFile)
     res.status(StatusCodes.OK).json(updatedUser)
   } catch (error) { next(error) }
 }
@@ -101,5 +101,5 @@ export const userController = {
   forgotPassword,
   verifyResetToken,
   resetPassword,
-  update
+  updateUser
 }

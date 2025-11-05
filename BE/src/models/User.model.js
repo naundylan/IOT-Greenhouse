@@ -63,7 +63,7 @@ const findOneByEmail = async (emailValue) => {
   } catch (error) { throw new Error(error)}
 }
 
-const update = async (userId, updateData) => {
+const updateUser = async (userId, updateData) => {
   try {
     //Lọc các field không cho phép update
     Object.keys(updateData).forEach(fieldName => {
@@ -76,10 +76,10 @@ const update = async (userId, updateData) => {
     // Use findOneAndUpdate and return the updated document (not the command result wrapper)
     const result = await GET_DB().collection(USER_COLLECTION_NAME).findOneAndUpdate(
       { _id: new ObjectId(userId) },
-      { $set: updateData },
+      { $set: { ...updateData, updateAt: Date.now() } },
       { returnDocument: 'after' } // trả về kết quả mới khi cập nhật
     )
-    return result.value
+    return result
   } catch (error) { throw new Error(error) }
 }
 
@@ -115,7 +115,7 @@ export const userModel = {
   createdNew,
   findOneById,
   findOneByEmail,
-  update,
+  updateUser,
   pushPlantOrderIds,
   pushSensorOrderIds
 }

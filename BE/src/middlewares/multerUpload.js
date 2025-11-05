@@ -16,7 +16,7 @@ const customFileFilter = (req, file, callback) => {
 }
 
 // Config multer
-const upload = multer({ 
+const upload = multer({
   limits: { fileSize: LIMIT_COMMON_FILE__SIZE },
   fileFilter: customFileFilter
 })

@@ -3,8 +3,8 @@ import { historyService } from '~/services/history.service'
 
 const getDetails = async(req, res, next) => {
   try {
-    const historytId = req.params.id
-    const result = await historyService.getDetails(historytId)
+    const userId = req.jwtDecoded._id
+    const result = await historyService.getDetails(userId)
     res.status(StatusCodes.OK).json(result)
   } catch (error) { next(error) }
 }

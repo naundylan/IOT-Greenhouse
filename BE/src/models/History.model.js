@@ -45,16 +45,29 @@ const findOneById = async(id) => {
   }
 }
 
-const getDetails = async(userId, skip = 0, limit = 50) => {
+const deleteOldHistory = async (userId) => {
+  const today = new Date()
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0).getTime()
+
+  await GET_DB().collection(HISTORY_COLLECTION_NAME).deleteMany({
+    userId: new ObjectId(userId),
+    createdAt: { $lt: startOfToday }
+  })
+}
+
+const getDetails = async(userId) => {
   try {
+    const today = new Date()
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0).getTime()
+    const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999).getTime()
+
     const result = await GET_DB().collection(HISTORY_COLLECTION_NAME)
       .find({
-        user: new ObjectId(userId),
+        userId: new ObjectId(userId),
+        createdAt: { $gte: startOfToday, $lte: endOfToday },
         _destroy: false
       })
       .sort({ createdAt: -1 }) // Mới nhất lên đầu
-      .skip(skip)
-      .limit(limit)
       .toArray()
     return result
   } catch (error) { throw new Error(error) }
@@ -77,5 +90,6 @@ export const historyModel = {
   createNew,
   findOneById,
   getDetails,
-  deleteOneById
+  deleteOneById,
+  deleteOldHistory
 }
