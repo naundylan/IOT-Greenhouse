@@ -130,9 +130,9 @@ const processThreshold = async (parameterName, value, thresholds, commands, aler
   const check = checkThreshold(value, thresholds)
   console.log('[DEBUG-2] Kết quả check:', check)
   if (!check) {
-    const offstate = commands.off
-    if (offstate)
-      PUBLISH_MQTT(commandTopic, JSON.stringify({ command: offstate }))
+    // const offstate = commands.off
+    // if (offstate)
+    //   PUBLISH_MQTT(commandTopic, JSON.stringify({ command: offstate }))
     return}
   console.log('[DEBUG-3] VI PHẠM! Đang tạo alert và gửi mail...')
   const message = check.status === 'HIGH'
@@ -160,7 +160,7 @@ const processThreshold = async (parameterName, value, thresholds, commands, aler
     <p>Vui lòng kiểm tra hệ thống.</p>
   `
   try {
-    const emailTask = (async () => {
+    (async () => {
       if (user && user.email) {
         try {
           await BrevoProvider.sendEMail(user.email, customSubject, htmlContent);
@@ -179,8 +179,6 @@ const processThreshold = async (parameterName, value, thresholds, commands, aler
       historyService.createNew(finalPayload),
       PUBLISH_MQTT(commandTopic, JSON.stringify({ command })),
 
-      emailTask,
-
       emitToUser(alertPayload.userId, 'BE_ALERT', {
         type: 'ALERT',
         sensorId: alertPayload.sensorId,
@@ -195,7 +193,7 @@ const processThreshold = async (parameterName, value, thresholds, commands, aler
   }
 }
 
-const checkAndCreateAlerts = (sensor, data) => {
+const checkAndCreateAlerts = async (sensor, data) => {
   const thresholds = sensor.thresholds || {}
   const {
     light,
@@ -213,13 +211,16 @@ const checkAndCreateAlerts = (sensor, data) => {
   }
 
   const commandTopic = `smartfarm/${sensor.deviceId}/commands`
+  const tasks = [
+    processThreshold('CO2', data.co2, co2, { high: 'FAN_ON', low: 'FAN_OFF', off: 'FAN_OFF' }, alertPayload, commandTopic),
+    processThreshold('Nhiệt độ', data.air_temperature, airTemperature, { high: 'COOLER_ON', low: 'COOLER_OFF', off: 'COOLER_OFF' }, alertPayload, commandTopic),
+    processThreshold('Độ ẩm KK', data.air_humidity, humidity, { high: 'DRYER_ON', low: 'DRYER_OFF', off: 'DRYER_OFF' }, alertPayload, commandTopic),
+    processThreshold('Độ ẩm đất', data.soil_moisture, soilMoisture, { high: 'PUMP_OFF', low: 'PUMP_ON', off: 'PUMP_OFF' }, alertPayload, commandTopic),
+    processThreshold('Nhiệt độ đất', data.soil_temperature, soilTemperature, { high: 'SOIL_ON', low: 'SOIL_OFF', off: 'SOIL_OFF' }, alertPayload, commandTopic),
+    processThreshold('Ánh sáng', data.light, light, { high: 'LAMP_ON', low: 'LAMP_OFF', off: 'LAMP_OFF' }, alertPayload, commandTopic)
+  ]
+  await Promise.all(tasks)
 
-  processThreshold('CO2', data.co2, co2, { high: 'FAN_ON', low: 'FAN_OFF', off: 'FAN_OFF' }, alertPayload, commandTopic)
-  processThreshold('Nhiệt độ', data.air_temperature, airTemperature, { high: 'COOLER_ON', low: 'COOLER_OFF', off: 'COOLER_OFF' }, alertPayload, commandTopic)
-  processThreshold('Độ ẩm KK', data.air_humidity, humidity, { high: 'DRYER_ON', low: 'DRYER_OFF', off: 'DRYER_OFF' }, alertPayload, commandTopic)
-  processThreshold('Độ ẩm đất', data.soil_moisture, soilMoisture, { high: 'PUMP_OFF', low: 'PUMP_ON', off: 'PUMP_OFF' }, alertPayload, commandTopic)
-  processThreshold('Nhiệt độ đất', data.soil_temperature, soilTemperature, { high: 'SOIL_ON', low: 'SOIL_OFF', off: 'SOIL_OFF' }, alertPayload, commandTopic)
-  processThreshold('Ánh sáng', data.light, light, { high: 'LAMP_ON', low: 'LAMP_OFF', off: 'LAMP_OFF' }, alertPayload, commandTopic)
 }
 
 //query lấy lịch sử theo giờ

@@ -36,9 +36,19 @@ const createNew = async (data) => {
 
 const findDataBySensor = async (sensorId) => {
   try {
+    const now = new Date()
+    const vn = new Date(now .getTime() + 7 * 60 * 60 * 1000 )
+    const today = vn.toISOString().slice(0, 10)
+
     const result = await GET_DB().collection(SENSOR_DATA_COLLECTION_NAME)
-      .find({ sensor: new ObjectId(sensorId) })
-      .sort({ time: -1 }) // Mới nhất lên đầu
+      .find({
+        sensor: new ObjectId(sensorId),
+        'time': {
+          $gte: `${today}T00:00:00`,
+          $lt : `${today}T23:59:59.999`
+        }
+      })
+      .sort({ time:   1 }) // Mới nhất lên đầu
       .toArray()
     return result
   } catch (error) { throw new Error(error) }

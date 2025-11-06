@@ -17,7 +17,7 @@ const registerDevice = async (req, res, next) => {
   }
 }
 
-//validate cho api :id/sensor-data và cơ chế phân trang
+//validate cho api :id/sensor-data
 const getSensorData = async (req, res, next) => {
   const paramSchema = Joi.object({
     deviceId: Joi.string().required().trim().message(DEVICE_ID)

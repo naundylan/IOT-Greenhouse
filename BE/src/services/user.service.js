@@ -158,7 +158,7 @@ const refreshToken = async (clientRefreshToken) => {
   } catch (error) { throw error }
 }
 
-const update = async (userId, reqBody, userAvtarFile) => {
+const updateUser = async (userId, reqBody, userAvtarFile) => {
   try {
     //query user trong db cho chắc chắn
     const existUser = await userModel.findOneById(userId)
@@ -184,7 +184,7 @@ const update = async (userId, reqBody, userAvtarFile) => {
       // Lưu url ảnh vào db
       updatePayload.avatar = uploadResult.secure_url
     }
-    const updateUser = await userModel.update(existUser._id, updatePayload)
+    const updateUser = await userModel.updateUser(existUser._id, updatePayload)
     return pickUser(updateUser)
   } catch (error) {throw error}
 }
@@ -197,5 +197,5 @@ export const userService = {
   verifyResetToken,
   resetPassword,
   refreshToken,
-  update
+  updateUser
 }
