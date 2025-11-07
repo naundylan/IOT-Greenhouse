@@ -1,8 +1,5 @@
 /* eslint-disable no-useless-catch */
 import { historyModel } from '~/models/History.model'
-import ApiError from '~/utils/ApiError'
-import { StatusCodes } from 'http-status-codes'
-
 
 const createNew = async (payload) => {
   try {

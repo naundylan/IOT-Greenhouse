@@ -11,7 +11,7 @@ import { PUBLISH_MQTT } from '~/config/mqtt'
 import { BrevoProvider } from '~/providers/Brevo.provider'
 import { emitToUser } from '~/sockets/socket'
 import ExcelJs from 'exceljs'
-
+import { Logger } from '~/config/logger'
 
 const registerDevice = async ( userId, reqBody ) => {
   try {
@@ -113,7 +113,9 @@ const saveMqttData = async (deviceId, validateData) => {
 
     await checkAndCreateAlerts(sensor, validateData)
 
-  } catch (error) { console.log(error.message) }
+  } catch (error) {
+    Logger.error(`Lỗi khi lưu dữ liệu MQTT cho deviceId ${deviceId}: ${error.message}`)
+  }
 }
 
 const checkThreshold = (value, threshold) => {
@@ -126,10 +128,9 @@ const checkThreshold = (value, threshold) => {
 }
 
 const processThreshold = async (parameterName, value, thresholds, commands, alertPayload, commandTopic) => {
-  console.log(`\n[DEBUG-1] Đang check: ${parameterName} (Giá trị: ${value})`)
   const check = checkThreshold(value, thresholds)
   const isAuto = alertPayload.mode === 'AUTO'
-  console.log('[DEBUG-2] Kết quả check:', check)
+
   if (!check) {
     if ( isAuto && commands?.off) {
       await PUBLISH_MQTT(commandTopic, JSON.stringify({ command: commands.off }))
@@ -140,10 +141,10 @@ const processThreshold = async (parameterName, value, thresholds, commands, aler
       await sensorModel.update(alertPayload.sensorId, { controlMode: 'AUTO' })
       alertPayload.mode = 'AUTO'
     } catch (error) {
-      console.log('Failed to update sensor control mode:', error.message)
+      Logger.error(`Failed to update sensor control mode for sensor ${alertPayload.sensorId}: ${error.message}`)
     }
   }
-  console.log('[DEBUG-3] VI PHẠM! Đang tạo alert và gửi mail...')
+
   const message = check.status === 'HIGH'
     ? `${parameterName} vượt ngưỡng ${check.threshold}, giá trị hiện tại: ${value}`
     : `${parameterName} thấp hơn ngưỡng ${check.threshold}, giá trị hiện tại: ${value}`
@@ -172,16 +173,16 @@ const processThreshold = async (parameterName, value, thresholds, commands, aler
     (async () => {
       if (user && user.email) {
         try {
-          await BrevoProvider.sendEMail(user.email, customSubject, htmlContent);
+          await BrevoProvider.sendEMail(user.email, customSubject, htmlContent)
           // 1. LOG KHI GỬI THÀNH CÔNG
-          console.log(`[ALERT] Đã gửi email cảnh báo ${parameterName} tới ${user.email} (Sensor: ${alertPayload.sensorName})`);
+          Logger.info(`[ALERT] Đã gửi email cảnh báo ${parameterName} tới ${user.email} (Sensor: ${alertPayload.sensorName})`)
         } catch (emailError) {
           // 2. LOG KHI GẶP LỖI
-          console.error(`[ALERT] Lỗi khi gửi email tới ${user.email}:`, emailError.message);
+          Logger.error(`[ALERT] Lỗi khi gửi email cảnh báo ${parameterName} tới ${user.email} (Sensor: ${alertPayload.sensorName}): ${emailError.message}`)
         }
       } else {
         // 3. LOG NẾU USER KHÔNG CÓ EMAIL
-        console.warn(`[ALERT] Bỏ qua gửi email: Không tìm thấy email cho user ${alertPayload.userId}`);
+        Logger.warn(`[ALERT] Bỏ qua gửi email: Không tìm thấy email cho user ${alertPayload.userId}`)
       }
     })()
     await Promise.all([ // Chạy song song
@@ -199,7 +200,7 @@ const processThreshold = async (parameterName, value, thresholds, commands, aler
       })
     ])
   } catch (error) {
-    console.error(`Failed to process ${parameterName} alert:`, error)
+    Logger.error(`Lỗi khi xử lý cảnh báo ${parameterName} cho sensor ${alertPayload.sensorId}: ${error.message}`)
   }
 }
 
