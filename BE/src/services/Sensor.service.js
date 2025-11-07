@@ -128,12 +128,21 @@ const checkThreshold = (value, threshold) => {
 const processThreshold = async (parameterName, value, thresholds, commands, alertPayload, commandTopic) => {
   console.log(`\n[DEBUG-1] Đang check: ${parameterName} (Giá trị: ${value})`)
   const check = checkThreshold(value, thresholds)
+  const isAuto = alertPayload.mode === 'AUTO'
   console.log('[DEBUG-2] Kết quả check:', check)
   if (!check) {
-    // const offstate = commands.off
-    // if (offstate)
-    //   PUBLISH_MQTT(commandTopic, JSON.stringify({ command: offstate }))
+    if ( isAuto && commands?.off) {
+      await PUBLISH_MQTT(commandTopic, JSON.stringify({ command: commands.off }))
+    }
     return}
+  if ( !isAuto ) {
+    try {
+      await sensorModel.update(alertPayload.sensorId, { controlMode: 'AUTO' })
+      alertPayload.mode = 'AUTO'
+    } catch (error) {
+      console.log('Failed to update sensor control mode:', error.message)
+    }
+  }
   console.log('[DEBUG-3] VI PHẠM! Đang tạo alert và gửi mail...')
   const message = check.status === 'HIGH'
     ? `${parameterName} vượt ngưỡng ${check.threshold}, giá trị hiện tại: ${value}`
@@ -185,7 +194,8 @@ const processThreshold = async (parameterName, value, thresholds, commands, aler
         parameterName,
         triggeredValue: value,
         message,
-        timestamp: new Date()
+        timestamp: new Date(),
+        mode: alertPayload.mode
       })
     ])
   } catch (error) {
@@ -207,7 +217,8 @@ const checkAndCreateAlerts = async (sensor, data) => {
   const alertPayload = {
     userId: String(sensor.user),
     sensorId: String(sensor._id),
-    sensorName: sensor.name
+    sensorName: sensor.name,
+    mode: sensor.controlMode
   }
 
   const commandTopic = `smartfarm/${sensor.deviceId}/commands`

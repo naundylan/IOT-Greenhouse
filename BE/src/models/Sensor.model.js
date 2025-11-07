@@ -10,6 +10,7 @@ const SENSOR_COLLECTION_SCHEMA = Joi.object({
   name: Joi.string().required().trim().strict(),
   plantId: Joi.string().pattern(OBJECT_ID_RULE).message(OBJECT_ID_RULE_MESSAGE).allow(null).default(null),
   thresholds: Joi.object().default({}),
+  controlMode: Joi.string().valid('AUTO', 'MANUAL').default('AUTO'),
   createdAt: Joi.date().timestamp('javascript').default(Date.now),
   updatedAt: Joi.date().timestamp('javascript').default(null),
   _destroy: Joi.boolean().default(false)

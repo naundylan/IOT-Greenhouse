@@ -42,16 +42,16 @@ const START_SERVER =() => {
 
   exitHook(() => {
     CLOSE_DB()
-    // CLOSE_MQTT()
+    CLOSE_MQTT()
   })
 }
 
 (async () => {
   try {
     await CONNECT_DB()
-    // await CONNECT_MQTT()
+    await CONNECT_MQTT()
 
-    // await initializeMqttListener()
+    await initializeMqttListener()
 
     START_SERVER()
   } catch (err) {
