@@ -20,7 +20,7 @@ const validateBeforeCreate = async (data) => {
   return await HISTORY_COLLECTION_SCHEMA.validateAsync(data)
 }
 
-const INVALID_UPDATE_FIELDS = ['_id', 'createdAt']
+// const INVALID_UPDATE_FIELDS = ['_id', 'createdAt']
 
 const createNew = async(data) => {
   try {
@@ -28,7 +28,7 @@ const createNew = async(data) => {
     const createPlant = {
       ...validData,
       userId: new ObjectId(validData.userId),
-      sensorId: new ObjectId(validData.sensorId),
+      sensorId: new ObjectId(validData.sensorId)
     }
     return await GET_DB().collection(HISTORY_COLLECTION_NAME).insertOne(createPlant)
   } catch (error) {

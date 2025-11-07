@@ -1,7 +1,7 @@
 import { GET_MQTT, SUBSCRIBE_MQTT } from '~/config/mqtt'
 import { sensorValidation } from '~/validations/sensor.validation'
 import { sensorService } from '~/services/sensor.service'
-import { emitToUser } from './socket'
+import { Logger } from '~/config/logger'
 
 // Dấu '+' là wildcard cho deviceId
 const DATA_TOPIC = 'smartfarm/+/data'
@@ -21,7 +21,7 @@ export const initializeMqttListener = async () => {
         // Tách deviceId từ topic
         const topicParts = topic.split('/')
         if (topicParts.length !== 3 || topicParts[0] !== 'smartfarm' || topicParts[2] !== 'data') {
-          console.warn(`[MQTT] Topic không hợp lệ: ${topic}`)
+          Logger.warn(`[MQTT] Topic không hợp lệ: ${topic}`)
           return
         }
         const deviceId = topicParts[1]
@@ -31,7 +31,7 @@ export const initializeMqttListener = async () => {
         try {
           data = JSON.parse(payloadString)
         } catch (jsonError) {
-          console.error(`[MQTT] Lỗi parse JSON từ ${deviceId}: ${payloadString}`)
+          Logger.warn(`[MQTT] Lỗi parse JSON từ ${deviceId}: ${payloadString}`)
           return
         }
 
@@ -45,11 +45,11 @@ export const initializeMqttListener = async () => {
         await sensorService.saveMqttData(deviceId, validatedData)
 
       } catch (error) {
-        console.error(`[MQTT] Lỗi xử lý message ${topic}:`, error.message)
+        Logger.error(`[MQTT] Lỗi xử lý message ${topic}: ${error.message}`)
       }
     })
 
   } catch (error) {
-    console.error('[MQTT] Không thể khởi tạo listener:', error)
+    Logger.error(`[MQTT] Lỗi khởi tạo MQTT listener: ${error.message}`)
   }
 }
