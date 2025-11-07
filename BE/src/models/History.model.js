@@ -11,6 +11,7 @@ const HISTORY_COLLECTION_SCHEMA = Joi.object({
   parameterName: Joi.string().required().trim(),
   triggeredValue: Joi.number().required(),
   message: Joi.string().allow('').default(''),
+  mode: Joi.string().valid('AUTO', 'MANUAL'),
   createdAt: Joi.date().timestamp('javascript').default(Date.now),
   _destroy: Joi.boolean().default(false)
 })

@@ -7,6 +7,7 @@ import { StatusCodes } from 'http-status-codes'
 import { PUBLISH_MQTT } from '~/config/mqtt'
 import cookie from 'cookie'
 import { JwtProvider } from '~/providers/Jwt.provider'
+import { sensorModel } from '~/models/Sensor.model'
 
 export let io = null
 
@@ -48,6 +49,10 @@ export function initSocket(server) {
         const { deviceId, command } = data
         if ( !deviceId || !command) throw new Error('Invalid deviceId or command')
         console.log(data)
+
+        const sensor = await sensorModel.findOneByDeviceId(deviceId)
+        if (!sensor) throw new Error('Sensor not found')
+        await sensorModel.update(sensor._id, { controlMode: command === 'AUTO' ? 'AUTO' : 'MANUAL' })
         const commandTopic = `smartfarm/${deviceId}/commands`
         const payload = JSON.stringify({ command: command })
 
