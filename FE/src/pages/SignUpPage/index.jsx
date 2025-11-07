@@ -23,7 +23,7 @@ import StyledTextField from '../../components/StyledTextField';
 
 function SignUpPage() {
     const navigate = useNavigate();
-    
+
     const [formData, setFormData] = useState({
         email: '',
         username: '',
@@ -35,12 +35,12 @@ function SignUpPage() {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-// Hàm xử lý khi người dùng thay đổi giá trị trong form
+    // Hàm xử lý khi người dùng thay đổi giá trị trong form
     const handleChange = (e) => {
-        const { name, value } = e.target; 
+        const { name, value } = e.target;
         setFormData(prevState => ({ ...prevState, [name]: value }));
     };
-// Hàm xử lý khi người dùng submit form
+    // Hàm xử lý khi người dùng submit form
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (formData.password !== formData.confirmPassword) {
@@ -55,13 +55,14 @@ function SignUpPage() {
             const payload = {
                 email: formData.email,
                 username: formData.username,
-                password: formData.password, 
+                password: formData.password,
             }
             const response = await registerUser(payload);
-            navigate('/verify-email', { state: { email: payload.email } });
-            console.log('Đăng ký thành công:', response.data);
-            alert('Đăng ký tài khoản thành công! Vui lòng đăng nhập.');
-            navigate('/login');
+            console.log("Đăng ký thành công:", response);
+
+            alert("Đăng ký tài khoản thành công! Vui lòng xác thực email trước khi đăng nhập.");
+            navigate("/verify-email", { state: { email: payload.email } });
+
 
         } catch (apiError) {
             console.error('Lỗi đăng ký:', apiError);
@@ -120,13 +121,13 @@ function SignUpPage() {
                     <StyledTextField name="email" placeholder="Email" fullWidth required type="email" value={formData.email} onChange={handleChange}
                         InputProps={{
                             startAdornment: (<InputAdornment position="start"><EmailIcon sx={{ ml: 2, fontSize: 30 }} /></InputAdornment>)
-                        }} 
+                        }}
                     />
 
                     <StyledTextField name="username" placeholder="Tên Người Dùng" fullWidth required value={formData.username} onChange={handleChange}
                         InputProps={{
                             startAdornment: (<InputAdornment position="start"><PersonIcon sx={{ ml: 2, fontSize: 30 }} /></InputAdornment>)
-                        }} 
+                        }}
                     />
 
                     <StyledTextField
@@ -175,7 +176,7 @@ function SignUpPage() {
                 </Stack>
 
                 <Typography color="#BDBDBD" mt={3} sx={{ fontSize: '18px' }}>
-                        Bạn đã có tài khoản ? 
+                    Bạn đã có tài khoản ?
                     <Link to="/login" style={{ color: '#81c784', fontWeight: 'bold', textDecoration: 'none' }}>
                         Đăng Nhập
                     </Link>

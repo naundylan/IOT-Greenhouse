@@ -79,19 +79,19 @@ export default function AccountSettings() {
     handleCloseMenu();
   }
   const [isEditing, setIsEditing] = useState(false);
-  const [selected, setSelected] = useState("Account");
+  const [selected, setSelected] = useState("Tài khoản");
   const [avatar, setAvatar] = useState(null);
   const [userData, setUserData] = useState(MOCK_USER);
   const [plant, setPlant] = React.useState("4 season lettuce");
 
   const [presets, setPresets] = React.useState(() => {
-    const saved = localStorage.getItem("alert-presets");
+    const saved = localStorage.getItem("Thông báo");
     return saved ? JSON.parse(saved) : defaultPresets;
   });
 
   // ✅ useEffect nằm ngoài useState
   React.useEffect(() => {
-    const saved = localStorage.getItem("alert-presets");
+    const saved = localStorage.getItem("Thông báo");
     const oldPresets = saved ? JSON.parse(saved) : {};
 
     const merged = { ...defaultPresets };
@@ -104,13 +104,13 @@ export default function AccountSettings() {
     });
 
     setPresets(merged);
-    localStorage.setItem("alert-presets", JSON.stringify(merged));
+    localStorage.setItem("Thông báo", JSON.stringify(merged));
   }, []);
 
 
 
   const handleSavePlant = () => {
-    localStorage.setItem("alert-presets", JSON.stringify(presets));
+    localStorage.setItem("Thông báo", JSON.stringify(presets));
     alert(`✅ Settings saved for ${plant}!`);
   };
   const handleSave = () => setIsEditing(false);

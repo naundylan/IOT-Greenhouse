@@ -16,36 +16,78 @@ import {
 } from "@mui/material";
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
 import { Legend } from "recharts";
+import { useNavigate } from "react-router-dom";
+import {
+    AppBar,
+    Toolbar,
+    IconButton,
+    Menu,
+    MenuItem,
+    Stack,
+    Avatar,
+} from "@mui/material";
+import MenuIcon from "@mui/icons-material/Menu";
+import { getHistoryByDate } from "../../services/historyApi";
 
+const MOCK_USER = {
+    fullName: "Username",
+    gender: "Non-binary",
+    dob: "January 01, 2025",
+    email: "havu2845@gmail.com",
+    phone: "0974546812",
+    username: "Username",
+    password: "********",
+};
 export default function HistoryPage() {
     const [selectedDate, setSelectedDate] = useState(() => {
         const today = new Date();
         return today.toISOString().split("T")[0]; // yyyy-mm-dd
     });
-
     const [data, setData] = useState([]);
-
-    // ✅ Giả lập dữ liệu, sau này bạn có thể gọi API từ backend (MongoDB)
+    const [anchorEl, setAnchorEl] = useState(null);
+    const navigate = useNavigate()
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
     useEffect(() => {
-        // ví dụ: mỗi giờ trong ngày có một bộ dữ liệu
-        const mockData = Array.from({ length: 24 }).map((_, i) => ({
-            time: `${i}:00`,
-            temperature: 25 + Math.random() * 3,
-            humidity: 60 + Math.random() * 10,
-            light: 400 + Math.random() * 100,
-            ph: 6 + Math.random() * 0.5,
-            ec: 1.8 + Math.random() * 0.2,
-            co2: 450 + Math.random() * 30,
-        }));
-        setData(mockData);
+        const fetchHistory = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const res = await getHistoryByDate(selectedDate);
+                // Giả sử res là mảng các object như { time, temperature, humidity, light, ph, ec, co2 }
+                setData(res);
+            } catch (err) {
+                console.error("Lỗi khi tải dữ liệu lịch sử:", err);
+                setError("Không thể tải dữ liệu lịch sử, vui lòng thử lại sau.");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchHistory();
     }, [selectedDate]);
-
-    // ✅ Tính trung bình
     const average = (key) => (data.length ? (data.reduce((a, b) => a + b[key], 0) / data.length).toFixed(2) : 0);
-
     const handleExport = () => {
         alert(`Xuất báo cáo ngày ${selectedDate} (chức năng này bạn có thể nối với backend hoặc tạo file PDF).`);
     };
+    ;
+
+    const handleClickMenu = (event) => setAnchorEl(event.currentTarget);
+    const handleCloseMenu = () => setAnchorEl(null);
+    const handleLogout = () => {
+        navigate("/login");
+    };
+
+    const handleClickHistory = () => {
+        navigate("/history");
+    };
+    const handleClickSettings = () => {
+        navigate("/settings");
+    }
+    const handleDashboard = () => {
+        navigate("/dashboard");
+        handleCloseMenu();
+    }
 
     return (
         <Box sx={{
@@ -53,9 +95,42 @@ export default function HistoryPage() {
             backgroundSize: "cover",
             backgroundPosition: "center",
             backgroundAttachment: "fixed",
-            p: 3
 
         }}>
+            <AppBar
+                position="sticky"
+                elevation={1}
+                sx={{
+                    background: "linear-gradient(to right, #8DB600, #2E8B57)",
+                    color: "white",
+                }}
+            >
+                <Toolbar sx={{ display: "flex", justifyContent: "space-between" }}>
+                    <Typography variant="h5" fontWeight="bold">
+                        GREEHOUSE
+                    </Typography>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                        <Typography>{data.username}</Typography>
+                        <Avatar />
+                        <IconButton color="inherit" onClick={handleClickMenu}>
+                            <MenuIcon />
+                        </IconButton>
+                        <Menu
+                            anchorEl={anchorEl}
+                            open={Boolean(anchorEl)}
+                            onClose={handleCloseMenu}
+                        >
+                            <MenuItem onClick={handleLogout}>Đăng xuất</MenuItem>
+                            <Divider />
+                            <MenuItem onClick={handleClickSettings}>Cài đặt</MenuItem>
+                            <Divider />
+                            <MenuItem onClick={handleClickHistory}>Lịch sử</MenuItem>
+                            <Divider />
+                            <MenuItem onClick={handleDashboard}>Trang chủ</MenuItem>
+                        </Menu>
+                    </Box>
+                </Toolbar>
+            </AppBar>
             <Typography variant="h5" fontWeight="bold" gutterBottom>
                 📅 Lịch sử nhà kính
             </Typography>
@@ -79,7 +154,16 @@ export default function HistoryPage() {
                     </Grid>
                 </Grid>
             </Card>
-
+            {loading && (
+                <Typography sx={{ textAlign: "center", mt: 3 }}>
+                    Đang tải dữ liệu...
+                </Typography>
+            )}
+            {error && (
+                <Typography color="error" sx={{ textAlign: "center", mt: 3 }}>
+                    {error}
+                </Typography>
+            )}
             {/* --- Biểu đồ --- */}
             <Card sx={{ p: 2, mb: 3 }}>
                 <Typography variant="h6" gutterBottom>

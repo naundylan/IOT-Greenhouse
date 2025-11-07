@@ -18,6 +18,9 @@ function VerifyEmailPage() {
                 justifyContent: 'center',
                 height: '100vh',
                 bgcolor: '#f0f2f5',
+                backgroundImage: 'url("/login_bg.svg")',
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
             }}
         >
             <Paper
