@@ -279,13 +279,24 @@ async def task_send_mqtt():
 
             ok = mqtt_publish(payload)
             if DEBUG: print("MQTT PUB:", ok, payload)
-            mqtt_loop_step()
+#             mqtt_loop_step()
         except Exception as e:
             if DEBUG: print("MQTT task error:", e)
         gc.collect()
         await asyncio.sleep(7)
 
-
+async def task_mqtt_check_msg():
+    if DEBUG: print("Task Check_MSG (lắng nghe lệnh) đã khởi động.")
+    while True:
+        try:
+            # Gọi hàm helper của bạn để check tin nhắn
+            mqtt_loop_step() 
+        except Exception as e:
+            if DEBUG: print(f"Lỗi task check_msg: {e}")
+            mqtt_connect() # Kết nối lại nếu lỗi
+        
+        # Ngủ 0.5 giây -> nhanh hơn 7 giây rất nhiều
+        await asyncio.sleep(0.5)
 
 # ===== MAIN =====
 async def main():
@@ -299,7 +310,8 @@ async def main():
         task_light(),
         task_co2(),
 #         task_send_api(),
-        task_send_mqtt()
+        task_send_mqtt(),
+        task_mqtt_check_msg()
     )
 
 
