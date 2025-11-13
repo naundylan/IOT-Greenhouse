@@ -61,7 +61,7 @@ const getDetails = async(userId) => {
     const today = new Date()
     const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0).getTime()
     const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999).getTime()
-
+    await deleteOldHistory(userId)
     const result = await GET_DB().collection(HISTORY_COLLECTION_NAME)
       .find({
         userId: new ObjectId(userId),
