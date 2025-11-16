@@ -43,16 +43,34 @@ function LoginPage() {
         try {
 
             const response = await loginUser(formData);
-
-            console.log('Đăng nhập thành công:', response.data);
-
-            if (response.data.token) {
-                localStorage.setItem('userToken', response.data.token);
+            if (response.data.isActive === true) {
+                const token = response.data.accessToken;
+                const refreshToken = response.data.refreshToken;
+                const userData = {
+                    id: response.data._id,
+                    name: response.data.username,
+                    email: response.data.email,
+                    avatar: response.data.avatar,
+                    role: response.data.role,
+                    displayName: response.data.displayName,
+                    dob: response.data.dob,
+                    phone: response.data.phone,
+                    gender: "Nam"
+                }; try {
+                    localStorage.setItem("userToken", token);
+                    await new Promise((resolve) => requestAnimationFrame(resolve));
+                    localStorage.setItem("refreshToken", refreshToken);
+                    await new Promise((resolve) => requestAnimationFrame(resolve));
+                    localStorage.setItem("userData", JSON.stringify(userData));
+                    await new Promise((resolve) => requestAnimationFrame(resolve));
+                } catch (err) {
+                    console.error("LocalStorage write error:", err);
+                }
+                console.log('Đăng nhập thành công:', response.data);
+                navigate("/dashboard", { replace: true });
+            } else {
+                setError('Tài khoản chưa được kích hoạt. Vui lòng kiểm tra email để xác minh tài khoản.');
             }
-
-            // Chuyển hướng đến trang Dashboard hoặc trang chủ sau khi đăng nhập thành công
-            navigate('/dashboard');
-
         } catch (apiError) {
             console.error('Lỗi đăng nhập:', apiError);
             const errorMessage = apiError.response?.data?.message || 'Email hoặc mật khẩu không đúng.';
@@ -101,7 +119,7 @@ function LoginPage() {
                     <StyledTextField name="email" placeholder="Email" fullWidth required type="email" value={formData.email} onChange={handleChange} InputProps={{ startAdornment: (<InputAdornment position="start"><EmailIcon sx={{ ml: 2, fontSize: 30 }} /></InputAdornment>) }} />
                     <StyledTextField name="password" placeholder="Mật Khẩu" type={showPassword ? 'text' : 'password'} fullWidth required value={formData.password} onChange={handleChange} InputProps={{ startAdornment: (<InputAdornment position="start"><LockIcon sx={{ ml: 2, fontSize: 30 }} /></InputAdornment>), endAdornment: (<InputAdornment position="end"><IconButton onClick={() => setShowPassword(!showPassword)} edge="end" sx={{ mr: 1 }}>{showPassword ? <VisibilityOff /> : <Visibility />}</IconButton></InputAdornment>) }} />
                     <Typography align="right" sx={{ mt: -2, mb: 2 }}>
-                        <Link to="/forgot-password" style={{ color: '#BDBDBD', fontSize: '16px' }}>
+                        <Link to="/password/forgot" style={{ color: '#BDBDBD', fontSize: '16px' }}>
                             Quên mật khẩu?
                         </Link>
                     </Typography>

@@ -17,6 +17,7 @@ function ForgotPasswordPage() {
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    
     const [successMessage, setSuccessMessage] = useState(null); // State cho thông báo thành công
 
     const handleSubmit = async (e) => {

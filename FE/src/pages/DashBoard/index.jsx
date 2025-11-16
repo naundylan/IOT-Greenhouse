@@ -14,22 +14,20 @@ import QueryStatsIcon from "@mui/icons-material/QueryStats";
 import LightModeIcon from "@mui/icons-material/LightMode";
 import Dot from "@mui/icons-material/FiberManualRecord";
 import {
-  getDashboardData,
+  getHistoryDataChart,
   toggleLight,
   toggleFan,
-} from "../services/sensorApi";
-import { getCurrentUser } from "../services/authService";
+} from '../../services/sensorApi';
 import { useNavigate } from "react-router-dom";
-import {
-  LineChart, Line, CartesianGrid, XAxis, YAxis,
-  Tooltip, Legend, ResponsiveContainer
-} from "recharts";
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, Button
 } from "@mui/material";
 import { TextField } from "@mui/material";
+import { io } from "socket.io-client";
+import SensorChart from "./chartSensor";
+import { getHistoryAlertData } from "../../services/historyApi";  
 
-
+const SOCKET_URL = "http://localhost:8100";
 const METRIC_STATUS_LEVELS = {
   'CO₂': [
     { level: 'Thấp', range: '< 400 ppm', description: 'Cây quang hợp chậm, cần bổ sung CO₂.', color: '#64b5f6' }, // blue
@@ -70,8 +68,152 @@ const METRIC_STATUS_LEVELS = {
   ]
 };
 
+const getMetricStatus = (type, value) => {
+  const levels = METRIC_STATUS_LEVELS[type] || METRIC_STATUS_LEVELS["default"];
+
+  // Duyệt qua từng mức trong cấu hình
+  for (const level of levels) {
+    // Loại bỏ ký tự không phải số, dấu so sánh và khoảng trắng
+    const rangeText = level.range.replace(/ppm|°C|%/g, "").trim();
+
+    // Trường hợp dạng "< 400"
+    if (/^<\s*\d+(\.\d+)?$/.test(rangeText)) {
+      const num = parseFloat(rangeText.replace("<", "").trim());
+      if (value < num) return level;
+    }
+
+    // Trường hợp dạng "> 2000"
+    if (/^>\s*\d+(\.\d+)?$/.test(rangeText)) {
+      const num = parseFloat(rangeText.replace(">", "").trim());
+      if (value > num) return level;
+    }
+
+    // Trường hợp dạng "800 - 1200"
+    if (/^\d+(\.\d+)?\s*-\s*\d+(\.\d+)?$/.test(rangeText)) {
+      const [min, max] = rangeText.split("-").map((v) => parseFloat(v.trim()));
+      if (value >= min && value <= max) return level;
+    }
+  }
+
+  // Không khớp range nào → trả về mặc định
+  return METRIC_STATUS_LEVELS["default"][0];
+};
+
+const formatNumber = (num) => {
+  if (num == null || isNaN(num)) return null;
+  return parseFloat(num.toFixed(2));
+};
+
 function DashboardPage() {
-  const [dashboardData, setDashboardData] = useState(null);
+  const [socketStatus, setSocketStatus] = useState("Không hoạt động");
+  const [dashboardData, setDashboardData] = useState({
+    "type": "DATA",
+    "sensorId": "6905de6db3d11eac58e5a2b1",
+    "sensorName": "Cảm biến vườn rau",
+    "deviceId": "nhakinh01",
+    "data": {
+      "time": "2025-11-02T22:17:20",
+      "air_humidity": 50,
+      "light": 22,
+      "air_temperature": 60,
+      "soil_moisture": 44,
+      "co2": 800,
+      "soil_temperature": 22
+    }
+  });
+
+  const [chartData, setChartData] = useState([]);
+  useEffect(() => {
+    const fetchChartData = async () => {
+      try {
+        // 🔄 Lấy dữ liệu lịch sử từ API
+        const raw = await getHistoryDataChart(dashboardData.deviceId);
+
+        // 🕓 Lấy ngày hiện tại theo giờ Việt Nam (UTC+7)
+        const today = new Date(Date.now() + 7 * 60 * 60 * 1000)
+          .toISOString()
+          .split("T")[0];
+
+        // 🔍 Lọc dữ liệu ngày hôm nay & loại trùng time (giữ record sau)
+        const todayDataMap = raw.reduce((acc, item) => {
+          if (!item?.time) return acc;
+          const itemDate = item.time.split("T")[0];
+          if (itemDate === today) acc[item.time] = item;
+          return acc;
+        }, {});
+
+        // Chuyển object về mảng
+        const todayData = Object.values(todayDataMap);
+
+        // 🔧 Format dữ liệu
+        const formatted = todayData.map((item) => ({
+          time: item.time,
+          air_humidity: formatNumber(item.air_humidity),
+          light: formatNumber(item.light),
+          air_temperature: formatNumber(item.air_temperature),
+          soil_moisture: formatNumber(item.soil_moisture),
+          co2: formatNumber(item.co2),
+          soil_temperature: formatNumber(item.soil_temperature),
+        }));
+
+        // 💾 Lưu vào state
+        setChartData(formatted);
+      } catch (error) {
+        console.error("❌ Lỗi lấy dữ liệu chart:", error);
+      }
+    };
+
+    if (dashboardData?.deviceId) {
+      fetchChartData();
+
+      // 🔁 Tự động kiểm tra khi sang ngày mới
+      const checkDayChange = setInterval(() => {
+        const currentDay = new Date(Date.now() + 7 * 60 * 60 * 1000)
+          .toISOString()
+          .split("T")[0];
+
+        // Lấy ngày đã lưu lần trước
+        const storedDay = localStorage.getItem("lastFetchedDay");
+
+        // Nếu ngày đã thay đổi, fetch lại dữ liệu
+        if (storedDay !== currentDay) {
+          localStorage.setItem("lastFetchedDay", currentDay);
+          fetchChartData();
+        }
+
+      }, 60 * 1000); // kiểm tra mỗi phút
+
+      // cleanup interval khi component unmount
+      return () => clearInterval(checkDayChange);
+    }
+  }, [dashboardData?.deviceId]);
+
+  const [alertData, setAlertData] = useState([]);
+  useEffect(() => {
+    const fetchAlertData = async () => {
+      try {
+        // 🔄 Lấy dữ liệu lịch sử từ API
+        const raw = await getHistoryAlertData();
+        console.log("🚨 Dữ liệu alert lịch sử:", raw);
+
+        // 🔧 Format dữ liệu
+        const formatted = raw.map((item) => ({
+          time: item.timestamp,
+          parameterName: item.parameterName,
+          triggeredValue: formatNumber(item.triggeredValue),
+          message: item.message,
+          type: item.type || "warning"
+        }));
+
+        // 💾 Lưu vào state
+        setAlertData(formatted);
+      } catch (error) {
+        console.error("❌ Lỗi lấy dữ liệu chart:", error);
+      }
+    };
+    fetchAlertData()
+  }, []);
+
   const [loading, setLoading] = useState(true);
   const [anchorEl, setAnchorEl] = useState(null);
   const [isSwitchLoading, setIsSwitchLoading] = useState(false);
@@ -85,14 +227,86 @@ function DashboardPage() {
   });
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedMetric, setSelectedMetric] = useState(null);
-  const handleOpenMetricDetail = (metric) => {
-    setSelectedMetric(metric);
-    setOpenDialog(true);
-  };
   const handleCloseDialog = () => {
     setOpenDialog(false);
     setSelectedMetric(null);
   };
+
+  // ⚡ SOCKET.IO CLIENT
+  useEffect(() => {
+    const token = localStorage.getItem("userToken");
+    const socket = io(SOCKET_URL, {
+      transports: ["websocket"]
+    });
+
+    socket.on("connect", () => {
+      setSocketStatus("Hoạt động");
+      socket.emit('AUTH', token);
+    });
+
+    socket.on("disconnect", () => {
+      setSocketStatus("Không hoạt động");
+    });
+
+    socket.off("BE_DATA");
+    socket.off("BE_ALERT");
+
+    socket.on("BE_DATA", (dashboardBE) => {
+      // Định dạng dữ liệu mới
+      const newRecord = {
+        time: dashboardBE.data.time,
+        air_humidity: formatNumber(dashboardBE.data.air_humidity),
+        light: formatNumber(dashboardBE.data.light),
+        air_temperature: formatNumber(dashboardBE.data.air_temperature),
+        soil_moisture: formatNumber(dashboardBE.data.soil_moisture),
+        co2: formatNumber(dashboardBE.data.co2),
+        soil_temperature: formatNumber(dashboardBE.data.soil_temperature),
+      };
+      const newDashboardBE = {
+        type: "DATA",
+        sensorId: "6905de6db3d11eac58e5a2b1",
+        sensorName: "Cảm biến vườn rau",
+        deviceId: "nhakinh01",
+        data: newRecord
+      }
+
+      // Cập nhật state
+      setDashboardData(newDashboardBE);
+      setChartData((prevData) => {
+        console.log("📶 Dữ liệu mới nhận từ BE:", newRecord);
+        return [...prevData, newRecord];
+      });
+
+    });
+
+    socket.on("BE_ALERT", (data) => {
+      console.log("🚨 Alert nhận được từ BE:", data);
+      setAlertData((prevData) => {
+        const newRecord = {
+          time: data.timestamp,
+          parameterName: data.parameterName,
+          triggeredValue: formatNumber(data.triggeredValue),
+          message: data.message,
+          type: data.type || "warning",
+        };
+
+        // Nếu đã có alert cùng parameterName → ghi đè bản mới
+        // const filtered = prevData.filter(
+        //   (item) => item.parameterName !== newRecord.parameterName
+        // );
+
+        const updated = [newRecord, ...prevData];
+        return updated;
+      });
+    });
+
+    return () => {
+      // Dọn sạch khi component unmount
+      socket.off("BE_DATA");
+      socket.off("BE_ALERT");
+      socket.disconnect();
+    };
+  }, []);
 
   // 🔧 Handler Menu
   const handleClickMenu = (event) => setAnchorEl(event.currentTarget);
@@ -102,6 +316,8 @@ function DashboardPage() {
     handleCloseMenu();
   };
   const handleLogout = () => {
+    localStorage.removeItem("userToken");
+    localStorage.removeItem("userData");
     navigate("/login");
     handleCloseMenu();
   };
@@ -117,33 +333,27 @@ function DashboardPage() {
     // TODO: gửi dữ liệu lên server
     handleCloseUserDialog();
   };
+  const handleOpenMetricDetail = (value, label) => {
+    setSelectedMetric({ value, label });
+    setOpenDialog(true);
+  }
 
-
-  // ...
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // 🧠 Lấy thông tin người dùng
-        const userRes = await getCurrentUser();
+        const userData = JSON.parse(localStorage.getItem("userData"));
         setUserInfo({
-          name: userRes.data.name || "Chưa có tên",
-          gender: userRes.data.gender || "Không xác định",
-          dob: userRes.data.dob || "Không rõ",
-          email: userRes.data.email,
+          name: userData.name || "Chưa có tên",
+          gender: userData.gender || "Không xác định",
+          dob: userData.dob || "Không rõ",
+          email: userData.email,
         });
-
-        // 🌱 Lấy dữ liệu cảm biến
-        const dataRes = await getDashboardData();
-        setDashboardData(dataRes.data);
-
         setLoading(false);
       } catch (err) {
         console.error("❌ Lỗi khi tải Dashboard:", err);
 
-        // Nếu lỗi xác thực → logout
         if (err.response?.status === 401) {
-          localStorage.removeItem("userToken");
           navigate("/login");
         }
       }
@@ -156,7 +366,8 @@ function DashboardPage() {
   // 💡 Bật/Tắt đèn
   const handleToggleLight = async () => {
     if (!dashboardData) return;
-    const newStatus = !dashboardData.lightStatus;
+    // const newStatus = !dashboardData.lightStatus;
+    const newStatus = true;
     setIsSwitchLoading(true);
 
     try {
@@ -172,7 +383,9 @@ function DashboardPage() {
   // 🌬️ Bật/Tắt quạt
   const handleToggleFan = async () => {
     if (!dashboardData) return;
-    const newStatus = !dashboardData.fanStatus;
+    // const newStatus = !dashboardData.fanStatus;
+    const newStatus = true;
+
     setIsSwitchLoading(true);
 
     try {
@@ -265,16 +478,16 @@ function DashboardPage() {
             <Stack direction="row" spacing={1.5} alignItems="center">
               <HomeIcon />
               <Typography variant="h5" fontWeight="bold">
-                {dashboardData.name}
+                {dashboardData.deviceId}
               </Typography>
             </Stack>
             <Stack direction="row" spacing={1.5} alignItems="center">
               <LocalFloristIcon />
-              <Typography variant="h6">{dashboardData.plant}</Typography>
+              <Typography variant="h6">{dashboardData.sensorName}</Typography>
             </Stack>
             <Stack direction="row" spacing={1} alignItems="center">
               <Dot sx={{ color: "lightgreen" }} />
-              <Typography variant="h6">Trạng thái: {dashboardData.status}</Typography>
+              <Typography variant="h6">Trạng thái: {socketStatus}</Typography>
             </Stack>
 
             <Divider sx={{ opacity: 0.3 }} />
@@ -283,40 +496,264 @@ function DashboardPage() {
               sx={{
                 display: "grid",
                 gridTemplateColumns: { xs: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
-                gap: 2,
+                gap: 2.5,
               }}
             >
-              {dashboardData.metrics.map((m) => (
-                <Card
-                  key={m.id}
+              {/* // Co2 */}
+              <Card
+                sx={{
+                  p: 4,
+                  textAlign: "center",
+                  borderRadius: 4,
+                  background: "rgba(255, 255, 255, 0.93)",
+                  color: "#333",
+                  transition: "0.2s",
+                  "&:hover": { transform: "scale(1.03)", boxShadow: 4 },
+                  border: `2px solid ${getMetricStatus("CO₂", dashboardData.data.co2).color}`,
+                  boxShadow: `0 0 10px ${getMetricStatus("CO₂", dashboardData.data.co2).color}50`,
+                }}
+                onClick={() => handleOpenMetricDetail(dashboardData.data.co2, "CO₂")}
+              >
+                <Typography variant="caption" sx={{ opacity: 0.8, color: getMetricStatus("CO₂", dashboardData.data.co2).color }}>
+                  CO₂ ({getMetricStatus("CO₂", dashboardData.data.co2).level})
+                </Typography>
+
+                <Typography
+                  variant="h6"
                   sx={{
-                    p: 5,
-                    textAlign: "center",
-                    borderRadius: 6,
-                    background: "rgba(255, 255, 255, 0.93)",
-                    color: "#333",
-                    cursor: "pointer",
-                    transition: "0.2s",
-                    "&:hover": { transform: "scale(1.05)", boxShadow: 6 },
+                    color: getMetricStatus("CO₂", dashboardData.data.co2).color,
+                    fontWeight: "bold",
+                    lineHeight: 1.2,
                   }}
-                  onClick={() => handleOpenMetricDetail(m)}
                 >
-                  <Typography variant="caption" sx={{ opacity: 0.8, color: '#2e7d32' }}>
-                    {m.label}
-                  </Typography>
-                  <Typography variant="h6" sx={{ color: "#2e7d32", lineHeight: 1.2, fontWeight: 'bold' }}>
-                    {m.value}
-                  </Typography>
-                </Card>
-              ))}
+                  {dashboardData.data.co2} ppm
+                </Typography>
+
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "#555",
+                    mt: 0.5,
+                    fontSize: 13,
+                  }}
+                >
+                  {getMetricStatus("CO₂", dashboardData.data.co2).description}
+                </Typography>
+              </Card>
+              {/* // Ánh sáng */}
+              <Card
+                sx={{
+                  p: 4,
+                  textAlign: "center",
+                  borderRadius: 4,
+                  background: "rgba(255, 255, 255, 0.93)",
+                  color: "#333",
+                  transition: "0.2s",
+                  "&:hover": { transform: "scale(1.03)", boxShadow: 4 },
+                  border: `2px solid ${getMetricStatus("Ánh sáng", dashboardData.data.light).color}`,
+                  boxShadow: `0 0 10px ${getMetricStatus("Ánh sáng", dashboardData.data.light).color}50`,
+                }}
+                onClick={() => handleOpenMetricDetail(dashboardData.data.light, "Ánh sáng")}
+              >
+                <Typography variant="caption" sx={{ opacity: 0.8, color: getMetricStatus("Ánh sáng", dashboardData.data.light).color }}>
+                  Ánh sáng ({getMetricStatus("Ánh sáng", dashboardData.data.light).level})
+                </Typography>
+
+                <Typography
+                  variant="h6"
+                  sx={{
+                    color: getMetricStatus("Ánh sáng", dashboardData.data.light).color,
+                    fontWeight: "bold",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {dashboardData.data.light} lux
+                </Typography>
+
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "#555",
+                    mt: 0.5,
+                    fontSize: 13,
+                  }}
+                >
+                  {getMetricStatus("Ánh sáng", dashboardData.data.light).description}
+                </Typography>
+              </Card>
+              {/* // Nhiệt độ không khí */}
+              <Card
+                sx={{
+                  p: 4,
+                  textAlign: "center",
+                  borderRadius: 4,
+                  background: "rgba(255, 255, 255, 0.93)",
+                  color: "#333",
+                  transition: "0.2s",
+                  "&:hover": { transform: "scale(1.03)", boxShadow: 4 },
+                  border: `2px solid ${getMetricStatus("Nhiệt độ không khí", dashboardData.data.air_temperature).color}`,
+                  boxShadow: `0 0 10px ${getMetricStatus("Nhiệt độ không khí", dashboardData.data.air_temperature).color}50`,
+                }}
+                onClick={() => handleOpenMetricDetail(dashboardData.data.air_temperature, "Nhiệt độ không khí")}
+              >
+                <Typography variant="caption" sx={{ opacity: 0.8, color: getMetricStatus("Nhiệt độ không khí", dashboardData.data.air_temperature).color }}>
+                  Nhiệt độ không khí ({getMetricStatus("Nhiệt độ không khí", dashboardData.data.air_temperature).level})
+                </Typography>
+
+                <Typography
+                  variant="h6"
+                  sx={{
+                    color: getMetricStatus("Nhiệt độ không khí", dashboardData.data.air_temperature).color,
+                    fontWeight: "bold",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {dashboardData.data.air_temperature} °C
+                </Typography>
+
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "#555",
+                    mt: 0.5,
+                    fontSize: 13,
+                  }}
+                >
+                  {getMetricStatus("Nhiệt độ không khí", dashboardData.data.air_temperature).description}
+                </Typography>
+              </Card>
+              {/* // Độ ẩm không khí */}
+              <Card
+                sx={{
+                  p: 4,
+                  textAlign: "center",
+                  borderRadius: 4,
+                  background: "rgba(255, 255, 255, 0.93)",
+                  color: "#333",
+                  transition: "0.2s",
+                  "&:hover": { transform: "scale(1.03)", boxShadow: 4 },
+                  border: `2px solid ${getMetricStatus("Độ ẩm không khí", dashboardData.data.air_humidity).color}`,
+                  boxShadow: `0 0 10px ${getMetricStatus("Độ ẩm không khí", dashboardData.data.air_humidity).color}50`,
+                }}
+                onClick={() => handleOpenMetricDetail(dashboardData.data.air_humidity, "Độ ẩm không khí")}
+              >
+                <Typography variant="caption" sx={{ opacity: 0.8, color: getMetricStatus("Độ ẩm không khí", dashboardData.data.air_humidity).color }}>
+                  Độ ẩm không khí ({getMetricStatus("Độ ẩm không khí", dashboardData.data.air_humidity).level})
+                </Typography>
+
+                <Typography
+                  variant="h6"
+                  sx={{
+                    color: getMetricStatus("Độ ẩm không khí", dashboardData.data.air_humidity).color,
+                    fontWeight: "bold",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {dashboardData.data.air_humidity} °C
+                </Typography>
+
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "#555",
+                    mt: 0.5,
+                    fontSize: 13,
+                  }}
+                >
+                  {getMetricStatus("Độ ẩm không khí", dashboardData.data.air_humidity).description}
+                </Typography>
+              </Card>
+              {/* // Độ ẩm đất*/}
+              <Card
+                sx={{
+                  p: 4,
+                  textAlign: "center",
+                  borderRadius: 4,
+                  background: "rgba(255, 255, 255, 0.93)",
+                  color: "#333",
+                  transition: "0.2s",
+                  "&:hover": { transform: "scale(1.03)", boxShadow: 4 },
+                  border: `2px solid ${getMetricStatus("Độ ẩm đất", dashboardData.data.soil_moisture).color}`,
+                  boxShadow: `0 0 10px ${getMetricStatus("Độ ẩm đất", dashboardData.data.soil_moisture).color}50`,
+                }}
+                onClick={() => handleOpenMetricDetail(dashboardData.data.soil_moisture, "Độ ẩm đất")}
+              >
+                <Typography variant="caption" sx={{ opacity: 0.8, color: getMetricStatus("Độ ẩm đất", dashboardData.data.soil_moisture).color }}>
+                  Độ ẩm đất ({getMetricStatus("Độ ẩm đất", dashboardData.data.soil_moisture).level})
+                </Typography>
+
+                <Typography
+                  variant="h6"
+                  sx={{
+                    color: getMetricStatus("Độ ẩm đất", dashboardData.data.soil_moisture).color,
+                    fontWeight: "bold",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {dashboardData.data.soil_moisture} %
+                </Typography>
+
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "#555",
+                    mt: 0.5,
+                    fontSize: 13,
+                  }}
+                >
+                  {getMetricStatus("Độ ẩm đất", dashboardData.data.air_humidity).description}
+                </Typography>
+              </Card>
+              {/* // Nhiệt độ đất */}
+              <Card
+                sx={{
+                  p: 4,
+                  textAlign: "center",
+                  borderRadius: 4,
+                  background: "rgba(255, 255, 255, 0.93)",
+                  color: "#333",
+                  transition: "0.2s",
+                  "&:hover": { transform: "scale(1.03)", boxShadow: 4 },
+                  border: `2px solid ${getMetricStatus("Nhiệt độ đất", dashboardData.data.soil_temperature).color}`,
+                  boxShadow: `0 0 10px ${getMetricStatus("Nhiệt độ đất", dashboardData.data.soil_temperature).color}50`,
+                }}
+                onClick={() => handleOpenMetricDetail(dashboardData.data.soil_temperature, "Nhiệt độ đất")}
+              >
+                <Typography variant="caption" sx={{ opacity: 0.8, color: getMetricStatus("Nhiệt độ đất", dashboardData.data.soil_temperature).color }}>
+                  Nhiệt độ đất ({getMetricStatus("Nhiệt độ đất", dashboardData.data.soil_temperature).level})
+                </Typography>
+
+                <Typography
+                  variant="h6"
+                  sx={{
+                    color: getMetricStatus("Nhiệt độ đất", dashboardData.data.soil_temperature).color,
+                    fontWeight: "bold",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {dashboardData.data.soil_temperature}%
+                </Typography>
+
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "#555",
+                    mt: 0.5,
+                    fontSize: 13,
+                  }}
+                >
+                  {getMetricStatus("CO₂", dashboardData.data.co2).description}
+                </Typography>
+              </Card>
             </Box>
+
 
             {/* 💡 Bật/Tắt đèn */}
             <Card
               sx={{
                 mt: 2,
-                p: 5,
-                borderRadius: 6,
+                p: 4,
+                borderRadius: 4,
                 background: "rgba(255,255,255,0.85)",
                 color: "#2E5F40",
                 display: "flex",
@@ -332,7 +769,7 @@ function DashboardPage() {
               </Stack>
 
               <Switch
-                checked={dashboardData.lightStatus}
+                // checked={dashboardData.lightStatus}
                 onChange={handleToggleLight}
                 disabled={isSwitchLoading}
               />
@@ -341,8 +778,8 @@ function DashboardPage() {
             <Card
               sx={{
                 mt: 2,
-                p: 5,
-                borderRadius: 6,
+                p: 4,
+                borderRadius: 4,
                 background: "rgba(255,255,255,0.85)",
                 color: "#2E5F40",
                 display: "flex",
@@ -358,7 +795,7 @@ function DashboardPage() {
               </Stack>
 
               <Switch
-                checked={dashboardData.fanStatus}
+                // checked={dashboardData.fanStatus}
                 onChange={handleToggleFan}
                 disabled={isSwitchLoading}
               />
@@ -376,8 +813,13 @@ function DashboardPage() {
                   Thông báo trong 24h
                 </Typography>
               </Stack>
-              <List dense>
-                {dashboardData.notifications.map((n) => (
+              <List dense
+                sx={{
+                  maxHeight: 300,         // 👈 chiều cao tối đa vùng cuộn
+                  overflowY: "auto",      // 👈 bật scroll dọc
+                  pr: 1,                  // padding phải nhẹ cho scrollbar
+                }}>
+                {alertData.map((n) => (
                   <ListItem key={n.id} sx={{ mb: 1 }}>
                     <ListItemIcon sx={{ minWidth: 36 }}>
                       <WarningAmberIcon
@@ -400,41 +842,8 @@ function DashboardPage() {
                   Biểu đồ thông số
                 </Typography>
               </Stack>
-              <Box sx={{ height: 300 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={dashboardData.chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#ccc" />
-                    <XAxis dataKey="time" />
-
-                    {/* Trục Y trái */}
-                    <YAxis
-                      yAxisId="left"
-                      orientation="left"
-                      stroke="#8884d8"
-                      domain={[0, 100]} // Giới hạn để nhìn rõ
-                    />
-                    {/* Trục Y phải */}
-                    <YAxis
-                      yAxisId="right"
-                      orientation="right"
-                      stroke="#82ca9d"
-                      domain={[0, 2000]} // cho CO2, ánh sáng
-                    />
-
-                    <Tooltip />
-                    <Legend />
-
-                    {/* Các đường dùng trục trái */}
-                    <Line yAxisId="left" type="monotone" dataKey="nhietdokk" stroke="#FF7300" name="Nhiệt độ KK (°C)" dot={false} />
-                    <Line yAxisId="left" type="monotone" dataKey="doamkk" stroke="#228B22" name="Độ ẩm KK (%)" dot={false} />
-                    <Line yAxisId="left" type="monotone" dataKey="doamdat" stroke="#4B8BBE" name="Độ ẩm đất (%)" dot={false} />
-                    <Line yAxisId="left" type="monotone" dataKey="nhietdod" stroke="#8884d8" name="Nhiệt độ đất (°C)" dot={false} />
-
-                    {/* Các đường dùng trục phải */}
-                    <Line yAxisId="right" type="monotone" dataKey="anhsang" stroke="#E4C600" name="Ánh sáng (lux)" dot={false} />
-                    <Line yAxisId="right" type="monotone" dataKey="co2" stroke="#82ca9d" name="CO₂ (ppm)" dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
+              <Box>
+                <SensorChart chartData={chartData} />
               </Box>
             </Box>
           </Stack>

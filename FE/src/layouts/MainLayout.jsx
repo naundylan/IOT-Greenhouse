@@ -9,7 +9,7 @@ import { getCurrentUser } from '../services/authService'; // 2. Import service l
 function MainLayout() {
     const navigate = useNavigate();
     // Khởi tạo user là null ban đầu
-    const [user, setUser] = useState(null); 
+    const [user, setUser] = useState(null);
 
     const [anchorEl, setAnchorEl] = React.useState(null);
     const open = Boolean(anchorEl);
@@ -17,7 +17,8 @@ function MainLayout() {
     const handleClose = () => setAnchorEl(null);
 
     const handleLogout = () => {
-        localStorage.removeItem('userToken');
+        localStorage.removeItem("userToken");
+        localStorage.removeItem("userData");
         navigate('/login');
     };
 
@@ -27,7 +28,7 @@ function MainLayout() {
             try {
                 const response = await getCurrentUser();
                 // 4. SỬ DỤNG setUser để cập nhật state -> LỖI SẼ BIẾN MẤT!
-                setUser(response.data); 
+                setUser(response.data);
             } catch (error) {
                 console.error("Failed to fetch user:", error);
                 // Nếu token hết hạn, đá về trang login
@@ -54,7 +55,7 @@ function MainLayout() {
                         </IconButton>
                         <Menu anchorEl={anchorEl} open={open} onClose={handleClose}>
                             <MenuItem onClick={() => navigate('/dashboard')}>Dashboard</MenuItem>
-                            <MenuItem onClick={() => navigate('/setting')}>Setting</MenuItem>
+                            <MenuItem onClick={() => navigate('/settings')}>Setting</MenuItem>
                             <Divider />
                             <MenuItem onClick={handleLogout}>Log out</MenuItem>
                         </Menu>
@@ -63,7 +64,7 @@ function MainLayout() {
             </AppBar>
 
             <Box component="main" sx={{ flexGrow: 1, p: 3, overflowY: 'auto' }}>
-                <Outlet /> 
+                <Outlet />
             </Box>
         </Box>
     );

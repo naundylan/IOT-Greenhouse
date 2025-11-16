@@ -65,6 +65,8 @@ export default function AccountSettings() {
   const handleClickMenu = (event) => setAnchorEl(event.currentTarget);
   const handleCloseMenu = () => setAnchorEl(null);
   const handleLogout = () => {
+    localStorage.removeItem("userToken");
+    localStorage.removeItem("userData");
     navigate("/login");
   };
 
