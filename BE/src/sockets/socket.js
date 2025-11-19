@@ -1,12 +1,13 @@
 import { Server } from 'socket.io'
 import { corsOptions } from '~/config/cors'
-import jwt from 'jsonwebtoken'
 import { env } from '~/config/environment'
 import ApiError from '~/utils/ApiError'
 import { StatusCodes } from 'http-status-codes'
 import { PUBLISH_MQTT } from '~/config/mqtt'
 import cookie from 'cookie'
 import { JwtProvider } from '~/providers/Jwt.provider'
+import { sensorModel } from '~/models/Sensor.model'
+import { Logger } from '~/config/logger'
 
 export let io = null
 
@@ -47,18 +48,20 @@ export function initSocket(server) {
       try {
         const { deviceId, command } = data
         if ( !deviceId || !command) throw new Error('Invalid deviceId or command')
-        console.log(data)
+
+        const sensor = await sensorModel.findOneByDeviceId(deviceId)
+        if (!sensor) throw new Error('Sensor not found')
+        await sensorModel.update(sensor._id, { controlMode: command === 'AUTO' ? 'AUTO' : 'MANUAL' })
         const commandTopic = `smartfarm/${deviceId}/commands`
         const payload = JSON.stringify({ command: command })
 
         await PUBLISH_MQTT(commandTopic, payload)
-        console.log('da gui')
       } catch (error) {
-        console.log('command failed', error.message)
+        Logger.error(`FE_COMMAND error: ${error.message}`)
       }
     })
     socket.on('disconnect', () => {
-      console.log(`Socket disconnected: ${socket.id}`)
+      Logger.info(`Socket disconnected: ${socket.id}`)
     })
   })
 }
@@ -67,6 +70,6 @@ export function emitToUser(userId, event, data) {
   try {
     io.to(`user:${userId}`).emit(event, data)
   } catch (error) {
-    console.error(`Failed to emit event "${event}" to user ${userId}:`, error.message)
+    Logger.error(`emitToUser error: ${error.message}`)
   }
 }

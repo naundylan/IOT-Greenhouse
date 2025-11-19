@@ -12,6 +12,9 @@ import { initializeMqttListener } from './sockets/mqtt.listener'
 import http from 'http'
 import { initSocket } from './sockets/socket'
 import { swaggerDocs } from './config/swagger'
+import { Logger } from './config/logger'
+import morgan from 'morgan'
+import chalk from 'chalk'
 
 const START_SERVER =() => {
   const app = express()
@@ -27,6 +30,8 @@ const START_SERVER =() => {
 
   app.use(express.json())
 
+  app.use(morgan('dev', { stream: Logger.stream }))
+
   app.use('/v1', APIs_V1)
 
   app.use(errorHandling)
@@ -37,25 +42,26 @@ const START_SERVER =() => {
   initSocket(server)
 
   server.listen(env.APP_PORT, env.APP_HOST, () => {
-    console.log(`Starting server host: ${env.APP_HOST} and port: ${env.APP_PORT}`)
+    const url = `http://${env.APP_HOST}:${env.APP_PORT}/`
+    Logger.info(`${chalk.green('➜')} ${chalk.bold('Local')}: ${chalk.cyan(url)}` )
   })
 
   exitHook(() => {
     CLOSE_DB()
-    // CLOSE_MQTT()
+    CLOSE_MQTT()
   })
 }
 
 (async () => {
   try {
     await CONNECT_DB()
-    // await CONNECT_MQTT()
+    await CONNECT_MQTT()
 
-    // await initializeMqttListener()
+    await initializeMqttListener()
 
     START_SERVER()
   } catch (err) {
-    console.error(err)
+    Logger.error(err)
     process.exit()
   }
 })()

@@ -11,6 +11,7 @@ const HISTORY_COLLECTION_SCHEMA = Joi.object({
   parameterName: Joi.string().required().trim(),
   triggeredValue: Joi.number().required(),
   message: Joi.string().allow('').default(''),
+  mode: Joi.string().valid('AUTO', 'MANUAL'),
   createdAt: Joi.date().timestamp('javascript').default(Date.now),
   _destroy: Joi.boolean().default(false)
 })
@@ -19,7 +20,7 @@ const validateBeforeCreate = async (data) => {
   return await HISTORY_COLLECTION_SCHEMA.validateAsync(data)
 }
 
-const INVALID_UPDATE_FIELDS = ['_id', 'createdAt']
+// const INVALID_UPDATE_FIELDS = ['_id', 'createdAt']
 
 const createNew = async(data) => {
   try {
@@ -27,7 +28,7 @@ const createNew = async(data) => {
     const createPlant = {
       ...validData,
       userId: new ObjectId(validData.userId),
-      sensorId: new ObjectId(validData.sensorId),
+      sensorId: new ObjectId(validData.sensorId)
     }
     return await GET_DB().collection(HISTORY_COLLECTION_NAME).insertOne(createPlant)
   } catch (error) {
@@ -60,7 +61,7 @@ const getDetails = async(userId) => {
     const today = new Date()
     const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0).getTime()
     const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999).getTime()
-
+    await deleteOldHistory(userId)
     const result = await GET_DB().collection(HISTORY_COLLECTION_NAME)
       .find({
         userId: new ObjectId(userId),
