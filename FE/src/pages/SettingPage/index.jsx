@@ -20,17 +20,6 @@ import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import ShareIcon from "@mui/icons-material/Share";
 
-const MOCK_USER = {
-  fullName: "Username",
-  gender: "Non-binary",
-  dob: "January 01, 2025",
-  email: "havu2845@gmail.com",
-  phone: "0974546812",
-  username: "Username",
-  password: "********",
-};
-
-
 const defaultPresets = {
   "4 season lettuce": [
     { title: "CO₂", min: 1200, max: 1500, unit: "ppm", type: "Microclimate" },
@@ -65,6 +54,8 @@ export default function AccountSettings() {
   const handleClickMenu = (event) => setAnchorEl(event.currentTarget);
   const handleCloseMenu = () => setAnchorEl(null);
   const handleLogout = () => {
+    localStorage.removeItem("userToken");
+    localStorage.removeItem("userData");
     navigate("/login");
   };
 
@@ -81,7 +72,7 @@ export default function AccountSettings() {
   const [isEditing, setIsEditing] = useState(false);
   const [selected, setSelected] = useState("Tài khoản");
   const [avatar, setAvatar] = useState(null);
-  const [userData, setUserData] = useState(MOCK_USER);
+  const [userData, setUserData] = useState(JSON.parse(localStorage.getItem("userData")));
   const [plant, setPlant] = React.useState("4 season lettuce");
 
   const [presets, setPresets] = React.useState(() => {
@@ -157,7 +148,7 @@ export default function AccountSettings() {
             GREEHOUSE
           </Typography>
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <Typography>{userData.username}</Typography>
+            <Typography>{userData.name}</Typography>
             <Avatar src={avatar} />
             <IconButton color="inherit" onClick={handleClickMenu}>
               <MenuIcon />
@@ -329,8 +320,8 @@ export default function AccountSettings() {
                 </Stack>
 
                 {[
-                  { label: "Họ và tên", field: "fullName" },
-                  { label: "Giới tính", field: "gender" },
+                  { label: "Họ và tên", field: "displayName" },
+                  { label: "Giới tính", field: "Nam" },
                   { label: "Ngày sinh", field: "dob" },
                   { label: "Email", field: "email" },
                   { label: "Số điện thoại", field: "phone" },
@@ -351,7 +342,7 @@ export default function AccountSettings() {
 
               <Box sx={{ background: "#fff", borderRadius: 2, p: 3 }}>
                 {[
-                  { label: "Tên người dùng", field: "username" },
+                  { label: "Tên người dùng", field: "name" },
                   { label: "Mật khẩu", field: "password" },
                 ].map(({ label, field }) => (
                   <InfoRow

@@ -1,6 +1,4 @@
-// src/pages/VerifyEmailPage/index.jsx
-
-import React from 'react';
+ import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { Box, Typography, Paper } from '@mui/material';
 import MarkEmailReadIcon from '@mui/icons-material/MarkEmailRead';

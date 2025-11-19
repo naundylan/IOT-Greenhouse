@@ -21,7 +21,7 @@ apiClient.interceptors.request.use(
 );
 
 export const updateUserProfile = (profileData) => {
-    return apiClient.put('/profile', profileData); 
+    return apiClient.put('/update', profileData); 
 };
 
 export const changePassword = (passwordData) => {

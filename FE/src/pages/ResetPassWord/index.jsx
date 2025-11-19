@@ -18,14 +18,17 @@ import { useNavigate } from 'react-router-dom';
 import PersonIcon from '@mui/icons-material/Person';
 import { IconButton } from '@mui/material';
 import { resetPassword } from '../../services/authService';
+import { useSearchParams } from 'react-router-dom';
 
 function ResetPasswordPage() {
     const navigate = useNavigate();
-
     const [formData, setFormData] = useState({
         password: '',
         confirmPassword: '',
     });
+    const [searchParams] = useSearchParams();
+    const token = searchParams.get('token');
+    const email = searchParams.get('email');
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -37,35 +40,28 @@ function ResetPasswordPage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (formData.password !== formData.confirmPassword) {
-            setError("Mật khẩu xác nhận không khớp!");
+
+        const { password, confirmPassword } = formData;
+
+        if (password !== confirmPassword) {
+            setError('Mật khẩu xác nhận không khớp.');
             return;
         }
-        if (formData.password.length < 6) {
-            setError("Mật khẩu phải có ít nhất 6 ký tự!");
-            return;
-        }
-        setError(null);
+
         setLoading(true);
+        setError(null);
 
         try {
-            const payload = {
-                password: formData.password,
-                confirmPassword: formData.confirmPassword,
-                token: "/refresh_token",
-            }
-            const response = await resetPassword(payload);
-            console.log('Đổi mật khẩu thành công! Vui lòng đăng nhập', response.data);
+            const res = await resetPassword({ email, token, password }); // gửi đủ email + token
+            alert('Đặt lại mật khẩu thành công! Vui lòng đăng nhập lại.');
             navigate('/login');
-
-        } catch (apiError) {
-            console.error('Lỗi đổi mật khẩu:', apiError);
-            const errorMessage = apiError.response?.data?.message || 'Đã có lỗi xảy ra. Vui lòng thử lại.';
-            setError(errorMessage);
+        } catch (err) {
+            setError(err.response?.data?.message || 'Token không hợp lệ hoặc đã hết hạn.');
         } finally {
             setLoading(false);
         }
     };
+
     const passwordInputProps = {
         startAdornment: (
             <InputAdornment position="start">
