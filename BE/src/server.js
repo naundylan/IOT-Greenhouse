@@ -15,6 +15,8 @@ import { swaggerDocs } from './config/swagger'
 import { Logger } from './config/logger'
 import morgan from 'morgan'
 import chalk from 'chalk'
+import { initCronJobs } from './providers/Cron.provider'
+import { sensorDataModel } from './models/SensorData.model'
 
 const START_SERVER =() => {
   const app = express()
@@ -48,18 +50,20 @@ const START_SERVER =() => {
 
   exitHook(() => {
     CLOSE_DB()
-    CLOSE_MQTT()
+    // CLOSE_MQTT()
   })
 }
 
 (async () => {
   try {
     await CONNECT_DB()
-    await CONNECT_MQTT()
+    await sensorDataModel.createIndex()
+    // await CONNECT_MQTT()
 
-    await initializeMqttListener()
+    // await initializeMqttListener()
 
     START_SERVER()
+    initCronJobs()
   } catch (err) {
     Logger.error(err)
     process.exit()

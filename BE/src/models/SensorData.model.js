@@ -1,6 +1,7 @@
 import Joi from 'joi'
 import { ObjectId } from 'mongodb'
 import { GET_DB } from '~/config/mongodb'
+import { Logger } from '~/config/logger'
 
 const SENSOR_DATA_COLLECTION_NAME = 'sensor_data'
 const SENSOR_DATA_COLLECTION_SCHEMA = Joi.object({
@@ -62,16 +63,23 @@ const countDataBySensor = async (sensorId) => {
   } catch (error) { throw new Error(error) }
 }
 
-const getHourlyData = async (day, sensorId) => {
+const startHourlyDataJob = async () => {
   try {
+    const now = new Date()
+    const lastHour = new Date(now)
+    lastHour.setHours(now.getHours() - 1)
+
+    const timePrefix = lastHour.toISOString().slice(0, 13) // Lấy đến giờ
+
+    Logger.info(`[CRON] chạy data cho khung giờ: ${timePrefix}`)
+
     const pipeline = [
       { $match: {
-        sensor: new ObjectId(sensorId),
-        time: { $regex: `^${day}` } } },
-      { $addFields: { convertedTime: { $toDate: '$time' } } },
+        time: { $regex: `^${timePrefix}` } } },
       { $group: {
         _id: {
-          hour: { $hour: { date: '$convertedTime' } }
+          sensor: '$sensor',
+          timeKey: { $substr: ['$time', 0, 13] }
         },
         avg_light: { $avg: '$light' },
         avg_co2: { $avg: '$co2' },
@@ -81,21 +89,70 @@ const getHourlyData = async (day, sensorId) => {
         avg_air_humidity: { $avg: '$air_humidity' }
       }
       },
-      { $sort: { '_id.hour': 1 } },
       { $project: {
         _id: 0, // ẩn id
-        time: { $concat: [{ $toString: '$_id.hour' }, ':00'] },
-
+        sensorId: '$_id.sensor', // ID của Sensor
+        timeKey: '$_id.timeKey',
         light: { $round: ['$avg_light', 2] },
         co2: { $round: ['$avg_co2', 2] },
         soil_moisture: { $round: ['$avg_soil_moisture', 2] },
         soil_temperature: { $round: ['$avg_soil_temperature', 2] },
         air_temperature: { $round: ['$avg_air_temperature', 2] },
-        air_humidity: { $round: ['$avg_air_humidity', 2] }
-      } }
+        air_humidity: { $round: ['$avg_air_humidity', 2] },
+        updateAt: Date.now()
+      } },
+      // Merge vào collection hourly_sensor_data
+      {
+        $merge: {
+          into: 'hourly_sensor_data', // chuyển đến collection
+          on: ['sensorId', 'timeKey'], // Khóa để so sánh
+          whenMatched: 'replace', // Nếu đã có thì ghi đè lại
+          whenNotMatched: 'insert' // chưa có thì thêm mới
+        }
+      }
     ]
-    const data = await GET_DB().collection(sensorDataModel.SENSOR_DATA_COLLECTION_NAME).aggregate(pipeline).toArray()
-    return data
+    const result = await GET_DB().collection(SENSOR_DATA_COLLECTION_NAME).aggregate(pipeline).toArray()
+    Logger.info(`[CRON] Đã hoàn thành data cho khung giờ: ${timePrefix}`)
+    return result
+  } catch (error) {
+    Logger.error(`Lỗi khi chạy auto hourly data job: ${error.message}`)
+  }
+}
+// Hàm tạo collecton nếu chưa tồn tại vì query theo sensorId, timeKey
+const createIndex = async () => {
+  try {
+    const db = GET_DB()
+    await db.collection('hourly_sensor_data').createIndex(
+      { sensorId: 1, timeKey: 1 },
+      { unique: true,
+        background: true, // chạy ngầm
+        name: 'idx_sensorid_timekey'
+      }
+    )
+  } catch (error) {
+    Logger.error(`Lỗi khi tạo index cho collection hourly_sensor_data: ${error.message}`)
+  }
+}
+
+
+const getHourlyData = async (day, sensorId) => {
+  try {
+    const data = await GET_DB().collection('hourly_sensor_data')
+      .find({
+        sensorId: new ObjectId(sensorId),
+        timeKey: { $regex: `^${day}` } // Lấy tất cả các bản ghi trong ngày
+      })
+      .sort({ timeKey: 1 })
+      .toArray()
+    return data.map(item => ({
+      time: item.timeKey.slice(0, 13) + ':00',
+      light: item.light,
+      co2: item.co2,
+      soil_moisture: item.soil_moisture,
+      soil_temperature: item.soil_temperature,
+      air_temperature: item.air_temperature,
+      air_humidity: item.air_humidity
+    }))
   } catch (error) { throw new Error(error)}
 }
 
@@ -105,5 +162,7 @@ export const sensorDataModel = {
   createNew,
   findDataBySensor,
   countDataBySensor,
-  getHourlyData
+  getHourlyData,
+  startHourlyDataJob,
+  createIndex
 }
