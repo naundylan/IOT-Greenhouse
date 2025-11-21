@@ -1,5 +1,6 @@
 import Joi from 'joi'
 import { ObjectId } from 'mongodb'
+import { Logger } from '~/config/logger'
 import { GET_DB } from '~/config/mongodb'
 import { OBJECT_ID_RULE, OBJECT_ID_RULE_MESSAGE } from '~/utils/validator'
 
@@ -25,12 +26,12 @@ const validateBeforeCreate = async (data) => {
 const createNew = async(data) => {
   try {
     const validData = await validateBeforeCreate(data)
-    const createPlant = {
+    const createHistory = {
       ...validData,
       userId: new ObjectId(validData.userId),
       sensorId: new ObjectId(validData.sensorId)
     }
-    return await GET_DB().collection(HISTORY_COLLECTION_NAME).insertOne(createPlant)
+    return await GET_DB().collection(HISTORY_COLLECTION_NAME).insertOne(createHistory)
   } catch (error) {
     throw new Error(error)
   }
@@ -46,14 +47,17 @@ const findOneById = async(id) => {
   }
 }
 
-const deleteOldHistory = async (userId) => {
-  const today = new Date()
-  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0).getTime()
-
-  await GET_DB().collection(HISTORY_COLLECTION_NAME).deleteMany({
-    userId: new ObjectId(userId),
-    createdAt: { $lt: startOfToday }
-  })
+const deleteOldHistoryDataJob = async () => {
+  try {
+    const today = new Date()
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0).getTime()
+    await GET_DB().collection(HISTORY_COLLECTION_NAME).deleteMany({
+      createdAt: { $lt: startOfToday }
+    })
+    Logger.info('[CRON] Đã xóa dữ liệu lịch sử cũ thành công')
+  } catch (error) {
+    Logger.error(`[CRON]Lỗi khi chạy xóa lịch sử cũ: ${error.message}`)
+  }
 }
 
 const getDetails = async(userId) => {
@@ -61,7 +65,6 @@ const getDetails = async(userId) => {
     const today = new Date()
     const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0).getTime()
     const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999).getTime()
-    await deleteOldHistory(userId)
     const result = await GET_DB().collection(HISTORY_COLLECTION_NAME)
       .find({
         userId: new ObjectId(userId),
@@ -92,5 +95,5 @@ export const historyModel = {
   findOneById,
   getDetails,
   deleteOneById,
-  deleteOldHistory
+  deleteOldHistoryDataJob
 }

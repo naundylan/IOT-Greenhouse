@@ -8,10 +8,10 @@ import { StatusCodes } from 'http-status-codes'
 import { userModel } from '~/models/User.model'
 import { historyService } from '~/services/history.service'
 import { PUBLISH_MQTT } from '~/config/mqtt'
-import { BrevoProvider } from '~/providers/Brevo.provider'
 import { emitToUser } from '~/sockets/socket'
 import ExcelJs from 'exceljs'
 import { Logger } from '~/config/logger'
+import { sendEMailsmtp } from '~/config/smtp'
 
 const registerDevice = async ( userId, reqBody ) => {
   try {
@@ -173,7 +173,7 @@ const processThreshold = async (parameterName, value, thresholds, commands, aler
     (async () => {
       if (user && user.email) {
         try {
-          await BrevoProvider.sendEMail(user.email, customSubject, htmlContent)
+          await sendEMailsmtp(user.email, customSubject, htmlContent)
           // 1. LOG KHI GỬI THÀNH CÔNG
           Logger.info(`[ALERT] Đã gửi email cảnh báo ${parameterName} tới ${user.email} (Sensor: ${alertPayload.sensorName})`)
         } catch (emailError) {

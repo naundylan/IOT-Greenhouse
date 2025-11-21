@@ -1,5 +1,5 @@
 import { StatusCodes } from 'http-status-codes'
-import { sensorService } from '~/services/sensor.service'
+import { sensorService } from '~/services/Sensor.service'
 import ApiError from '~/utils/ApiError'
 import { sensorModel } from '~/models/Sensor.model'
 
