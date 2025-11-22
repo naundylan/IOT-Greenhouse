@@ -1,3 +1,4 @@
+/* eslint-disable no-lonely-if */
 /* eslint-disable no-useless-catch */
 import { sensorModel } from '~/models/Sensor.model'
 import { sensorDataModel } from '~/models/SensorData.model'
@@ -127,11 +128,27 @@ const checkThreshold = (value, threshold) => {
   return null
 }
 
+//Khai báo biến đếm chống spam mail
+const alertTrackers = new Map()
+
+const trackBackoff = (level) => {
+  if (level === 0)
+    return 1*60*1000 // 1 phút
+  if (level === 1)
+    return 5*60*1000 // 5 phút
+  return 15*60*1000 // 15 phút
+}
+
 const processThreshold = async (parameterName, value, thresholds, commands, alertPayload, commandTopic) => {
   const check = checkThreshold(value, thresholds)
   const isAuto = alertPayload.mode === 'AUTO'
+  const trackKey = `${alertPayload.sensorId}-${parameterName}`
 
   if (!check) {
+    // Xoá tracker nếu có
+    if (alertTrackers.has(trackKey)) {
+      alertTrackers.delete(trackKey)
+    }
     if ( isAuto && commands?.off) {
       await PUBLISH_MQTT(commandTopic, JSON.stringify({ command: commands.off }))
     }
@@ -158,6 +175,33 @@ const processThreshold = async (parameterName, value, thresholds, commands, aler
 
   const command = check.status === 'HIGH' ? commands.high : commands.low
 
+  let shouldSendEmail = false
+  let tracker = alertTrackers.get(trackKey) || { count: 0, level: 0, lastAlertTime: 0 }
+  const currentTime = Date.now()
+  if ( tracker.count < 3) {
+    shouldSendEmail = true
+    tracker.count +=1
+    Logger.info(`Gửi mail lần thứ ${tracker.count}`)
+    if ( tracker.count ===3) {
+      const waitTime = trackBackoff(0)
+      tracker.lastAlertTime = currentTime + waitTime
+      Logger.info(`Đạt ngưỡng 3 lần, bắt đầu time chờ ${waitTime/60000} phút`)
+    }
+  } else {
+    if ( currentTime > tracker.lastAlertTime) {
+      shouldSendEmail = true
+      tracker.level +=1
+      const waitTime = trackBackoff(tracker.level)
+      tracker.nextAllowTime = currentTime + waitTime
+      Logger.info(`Hết time chờ bắt đầu gửi lại mail, level ${tracker.level}, time chờ tiếp theo ${waitTime/60000} phút`)
+    }
+    else {
+      shouldSendEmail = false
+      Logger.info('Chưa đến time chờ, bỏ qua gửi mail')
+    }
+  }
+  alertTrackers.set(trackKey, tracker)
+
   const user = await userModel.findOneById(alertPayload.userId)
 
   const customSubject = `[CẢNH BÁO] ${alertPayload.sensorName} - ${parameterName} bất thường!`
@@ -173,6 +217,9 @@ const processThreshold = async (parameterName, value, thresholds, commands, aler
     (async () => {
       if (user && user.email) {
         try {
+          if (!shouldSendEmail) {
+            return
+          }
           await sendEMailsmtp(user.email, customSubject, htmlContent)
           // 1. LOG KHI GỬI THÀNH CÔNG
           Logger.info(`[ALERT] Đã gửi email cảnh báo ${parameterName} tới ${user.email} (Sensor: ${alertPayload.sensorName})`)
