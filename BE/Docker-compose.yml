@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  api:
+    container_name: nckh-backend
+    build: .             
+    ports:
+      - "8100:8100"      
+    env_file:
+      - .env             
+    restart: always
