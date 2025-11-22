@@ -62,8 +62,8 @@ const START_SERVER =() => {
 
     // await initializeMqttListener()
 
-    START_SERVER()
     initCronJobs()
+    START_SERVER()
   } catch (err) {
     Logger.error(err)
     process.exit()
