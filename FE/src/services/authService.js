@@ -6,6 +6,7 @@ const API_URL = "http://localhost:8100/v1/"; // đổi nếu backend port khác
 const apiClient = axios.create({
     baseURL: API_URL,
     headers: { "Content-Type": "application/json" },
+    withCredentials: true,
 });
 
 // ✅ Gắn access token nếu có
@@ -15,9 +16,10 @@ const apiClient = axios.create({
 //     return config;
 // });
 
+// Interceptor để gửi token từ localStorage (backup nếu cookie không hoạt động)
 apiClient.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem("userToken");
+        const token = localStorage.getItem("accessToken");
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -25,7 +27,6 @@ apiClient.interceptors.request.use(
     },
     (error) => Promise.reject(error)
 );
-
 
 // ✅ Các API
 export const registerUser = (data) => apiClient.post("users/register", data);

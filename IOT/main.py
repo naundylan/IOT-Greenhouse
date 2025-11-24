@@ -205,15 +205,14 @@ async def task_soil_moist():
 
 
 async def task_air():
-     while True:
-         try:
-             dht22.measure()
-             data["air_temperature"] = dht22.temperature()
-             data["air_humidity"] = dht22.humidity()
-         except Exception as e:
-             if DEBUG: print("DHT22 error:", e)
-         await asyncio.sleep(4)
-
+    while True:
+        try:
+            dht22.measure()
+            data["air_temperature"] = dht22.temperature()
+            data["air_humidity"] = dht22.humidity()
+        except Exception as e:
+            if DEBUG: print("DHT22 error:", e)
+        await asyncio.sleep(4)
 
 async def task_light():
     while True:
