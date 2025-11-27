@@ -50,7 +50,7 @@ const START_SERVER =() => {
 
   exitHook(() => {
     CLOSE_DB()
-    // CLOSE_MQTT()
+    CLOSE_MQTT()
   })
 }
 
@@ -58,9 +58,9 @@ const START_SERVER =() => {
   try {
     await CONNECT_DB()
     await sensorDataModel.createIndex()
-    // await CONNECT_MQTT()
+    await CONNECT_MQTT()
 
-    // await initializeMqttListener()
+    await initializeMqttListener()
 
     initCronJobs()
     START_SERVER()

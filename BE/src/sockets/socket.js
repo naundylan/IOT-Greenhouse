@@ -13,12 +13,16 @@ export let io = null
 
 const VALID_COMMANDS = {
   MODE: ['AUTO', 'MANUAL'],
-  RELAY: ['FAN_ON', 'FAN_OFF', 'LIGHT_ON', 'LIGHT_OFF']
+  RELAY: ['FAN_ON', 'FAN_OFF', 'LIGHT_ON', 'LIGHT_OFF', 'COOLER_ON', 'COOLER_OFF', 'DRYER_ON', 'DRYER_OFF', 'PUMP_ON', 'PUMP_OFF', 'SOIL_ON', 'SOIL_OFF']
 }
 
 const RELAY_MAP = {
   'FAN': 'FAN',
-  'LAMP': 'LIGHT'
+  'LIGHT': 'LIGHT',
+  'COOLER': 'COOLER',
+  'DRYER': 'DRYER',
+  'PUMP': 'PUMP',
+  'SOIL': 'SOIL'
 }
 
 export function initSocket(server) {
@@ -71,7 +75,8 @@ export function initSocket(server) {
           const relayKey = RELAY_MAP[relay]
           if (!relayKey) throw new Error('Invalid relay in command')
           const updateData = {
-            [`relays.${relayKey}`]: state
+            [`relays.${relayKey}`]: state,
+            controlMode: 'MANUAL'
           }
           await sensorModel.update(sensor._id, updateData)
           Logger.info(`Thiết bị ${deviceId} nhận lệnh ${command}`)
@@ -80,6 +85,12 @@ export function initSocket(server) {
         const payload = JSON.stringify({ command: command })
 
         await PUBLISH_MQTT(commandTopic, payload)
+
+        emitToUser(userId, 'FE_COMMAND', {
+          deviceId,
+          command
+        // controlMode: 'MANUAL'
+        })
       } catch (error) {
         Logger.error(`FE_COMMAND error: ${error.message}`)
       }

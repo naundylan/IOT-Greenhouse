@@ -139,11 +139,30 @@ const trackBackoff = (level) => {
   return 15*60*1000 // 15 phút
 }
 
+const syncAutoMode = async (sensorId, userId, deviceId, command) => {
+  if ( !command) return
+  try {
+    const parts = command.split('_')
+    if ( parts.length !==2 ) return
+    const relay = parts[0]
+    const state = parts[1]
+    await sensorModel.update(sensorId, {
+      [`relays.${relay}`]: state
+    })
+    emitToUser(userId, 'FE_COMMAND', {
+      deviceId,
+      command,
+      controlMode: 'AUTO'
+    })
+  } catch (error) {
+    Logger.error(`Lỗi đồng bộ: ${error.message}`)
+  }
+}
+
 const processThreshold = async (parameterName, value, thresholds, commands, alertPayload, commandTopic) => {
   const check = checkThreshold(value, thresholds)
   const isAuto = alertPayload.mode === 'AUTO'
   const trackKey = `${alertPayload.sensorId}-${parameterName}`
-
   if (!check) {
     // Xoá tracker nếu có
     if (alertTrackers.has(trackKey)) {
@@ -151,6 +170,7 @@ const processThreshold = async (parameterName, value, thresholds, commands, aler
     }
     if ( isAuto && commands?.off) {
       await PUBLISH_MQTT(commandTopic, JSON.stringify({ command: commands.off }))
+      await syncAutoMode(alertPayload.sensorId, alertPayload.userId, alertPayload.deviceId, commands.off)
     }
     return}
   if ( !isAuto ) {
@@ -172,6 +192,7 @@ const processThreshold = async (parameterName, value, thresholds, commands, aler
     triggeredValue: value,
     message
   }
+  const { deviceId, ...payloadHistory } = finalPayload
 
   const command = check.status === 'HIGH' ? commands.high : commands.low
 
@@ -233,9 +254,10 @@ const processThreshold = async (parameterName, value, thresholds, commands, aler
       }
     })()
     await Promise.all([ // Chạy song song
-      historyService.createNew(finalPayload),
+      historyService.createNew(payloadHistory),
       PUBLISH_MQTT(commandTopic, JSON.stringify({ command })),
 
+      syncAutoMode(alertPayload.sensorId, alertPayload.userId, deviceId, command),
       emitToUser(alertPayload.userId, 'BE_ALERT', {
         type: 'ALERT',
         sensorId: alertPayload.sensorId,
@@ -266,7 +288,8 @@ const checkAndCreateAlerts = async (sensor, data) => {
     userId: String(sensor.user),
     sensorId: String(sensor._id),
     sensorName: sensor.name,
-    mode: sensor.controlMode
+    mode: sensor.controlMode,
+    deviceId: sensor.deviceId
   }
 
   const commandTopic = `smartfarm/${sensor.deviceId}/commands`
@@ -276,7 +299,7 @@ const checkAndCreateAlerts = async (sensor, data) => {
     processThreshold('Độ ẩm KK', data.air_humidity, humidity, { high: 'DRYER_ON', low: 'DRYER_OFF', off: 'DRYER_OFF' }, alertPayload, commandTopic),
     processThreshold('Độ ẩm đất', data.soil_moisture, soilMoisture, { high: 'PUMP_OFF', low: 'PUMP_ON', off: 'PUMP_OFF' }, alertPayload, commandTopic),
     processThreshold('Nhiệt độ đất', data.soil_temperature, soilTemperature, { high: 'SOIL_ON', low: 'SOIL_OFF', off: 'SOIL_OFF' }, alertPayload, commandTopic),
-    processThreshold('Ánh sáng', data.light, light, { high: 'LAMP_ON', low: 'LAMP_OFF', off: 'LAMP_OFF' }, alertPayload, commandTopic)
+    processThreshold('Ánh sáng', data.light, light, { high: 'LIGHT_ON', low: 'LIGHT_OFF', off: 'LIGHT_OFF' }, alertPayload, commandTopic)
   ]
   await Promise.all(tasks)
 
