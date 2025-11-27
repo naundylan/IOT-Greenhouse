@@ -57,7 +57,6 @@ function LoginPage() {
                     phone: response.data.phone,
                     gender: "Nam"
                 }; try {
-                    // Lưu token với key "accessToken" để khớp với interceptor
                     localStorage.setItem("accessToken", token);
                     await new Promise((resolve) => requestAnimationFrame(resolve));
                     localStorage.setItem("refreshToken", refreshToken);

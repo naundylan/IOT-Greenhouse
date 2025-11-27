@@ -1,4 +1,5 @@
 import axios from "axios";
+import { setupInterceptors } from '../utils/axiosInterceptor';
 
 const API_URL = "http://localhost:8100/v1/sensors";
 
@@ -7,48 +8,36 @@ const apiClient = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  withCredentials: true, // Gửi cookie trong mọi request
+  withCredentials: true,
 });
 
-// Interceptor để gửi token từ localStorage (backup nếu cookie không hoạt động)
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("accessToken");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+setupInterceptors(apiClient);
 
 // 🟢 Lấy toàn bộ dữ liệu history
 export const getHistoryDataChart = async (deviceId) => {
-  // Token sẽ được tự động thêm bởi interceptor, không cần thêm thủ công
   const response = await apiClient.get(`/${deviceId}/data`);
   return response.data;
 };
 
-// 💡 Bật/tắt đèn
-export const toggleLight = async (status) => {
-  // Token sẽ được tự động thêm bởi interceptor
-  const response = await apiClient.get("/", { status });
-  console.log("Response data:", response.data);
-  console.log("Control Mode:", response.data[0].controlMode);
-  console.log("Type of Control Mode:", typeof response.data[0].relayState.fan);
-  return response.data.controlMode;
+
+export const getDeviceStatus = async () => {
+  try {
+    const response = await apiClient.get(``);
+    return response.data; 
+  } catch (error) {
+    console.error("Lỗi lấy trạng thái:", error);
+    return null;
+  }
 };
 
 // 🌬️ Bật/tắt quạt
 export const toggleFan = async (status) => {
-  // Token sẽ được tự động thêm bởi interceptor
   const response = await apiClient.patch("sensor/fan", { status });
   return response.data;
 };
 
 // 🔔 Lấy thông báo gần nhất
 export const getLatestNotifications = async () => {
-  // Token sẽ được tự động thêm bởi interceptor
   const response = await apiClient.get("notifications/latest");
   return response.data;
 };

@@ -1,5 +1,5 @@
 // src/pages/DashboardPage.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   AppBar, Avatar, Box, Card, CircularProgress, Divider, IconButton,
   List, ListItem, ListItemIcon, ListItemText, Menu, MenuItem, Stack,
@@ -15,8 +15,7 @@ import LightModeIcon from "@mui/icons-material/LightMode";
 import Dot from "@mui/icons-material/FiberManualRecord";
 import {
   getHistoryDataChart,
-  toggleLight,
-  toggleFan,
+  getDeviceStatus,
 } from '../../services/sensorApi';
 import { useNavigate } from "react-router-dom";
 import {
@@ -119,7 +118,10 @@ function DashboardPage() {
       "soil_moisture": 44,
       "co2": 800,
       "soil_temperature": 22
-    }
+    },
+    "controlMode": "AUTO",
+    lightStatus: false,
+    fanStatus: false
   });
 
   const [chartData, setChartData] = useState([]);
@@ -231,27 +233,28 @@ function DashboardPage() {
     setOpenDialog(false);
     setSelectedMetric(null);
   };
-
+  const socket = useRef(null);
   // ⚡ SOCKET.IO CLIENT
   useEffect(() => {
     const token = localStorage.getItem("userToken");
-    const socket = io(SOCKET_URL, {
-      transports: ["websocket"]
+    socket.current = io(SOCKET_URL, {
+      transports: ["websocket"],
+      withCredentials: true
     });
 
-    socket.on("connect", () => {
+    socket.current.on("connect", () => {
       setSocketStatus("Hoạt động");
-      socket.emit('AUTH', token);
+      socket.current.emit('AUTH', token);
     });
 
-    socket.on("disconnect", () => {
+    socket.current.on("disconnect", () => {
       setSocketStatus("Không hoạt động");
     });
 
-    socket.off("BE_DATA");
-    socket.off("BE_ALERT");
+    socket.current.off("BE_DATA");
+    socket.current.off("BE_ALERT");
 
-    socket.on("BE_DATA", (dashboardBE) => {
+    socket.current.on("BE_DATA", (dashboardBE) => {
       // Định dạng dữ liệu mới
       const newRecord = {
         time: dashboardBE.data.time,
@@ -262,16 +265,20 @@ function DashboardPage() {
         co2: formatNumber(dashboardBE.data.co2),
         soil_temperature: formatNumber(dashboardBE.data.soil_temperature),
       };
-      const newDashboardBE = {
-        type: "DATA",
-        sensorId: "6905de6db3d11eac58e5a2b1",
-        sensorName: "Cảm biến vườn rau",
-        deviceId: "nhakinh01",
-        data: newRecord
-      }
+      // const newDashboardBE = {
+      //   type: "DATA",
+      //   sensorId: "6905de6db3d11eac58e5a2b1",
+      //   sensorName: "Cảm biến vườn rau",
+      //   deviceId: "nhakinh01",
+      //   data: newRecord
+      // }
 
       // Cập nhật state
-      setDashboardData(newDashboardBE);
+      // setDashboardData(newDashboardBE);
+      setDashboardData((prev) => ({
+        ...prev,
+        data: newRecord
+      }));
       setChartData((prevData) => {
         console.log("📶 Dữ liệu mới nhận từ BE:", newRecord);
         return [...prevData, newRecord];
@@ -279,7 +286,7 @@ function DashboardPage() {
 
     });
 
-    socket.on("BE_ALERT", (data) => {
+    socket.current.on("BE_ALERT", (data) => {
       console.log("🚨 Alert nhận được từ BE:", data);
       setAlertData((prevData) => {
         const newRecord = {
@@ -299,12 +306,25 @@ function DashboardPage() {
         return updated;
       });
     });
+    socket.current.on("FE_COMMAND", (data) => {
+      setDashboardData((prev) => {
+        const updated = { ...prev };
+        if (data.command === "LIGHT_ON") updated.lightStatus = true;
+        if (data.command === "LIGHT_OFF") updated.lightStatus = false;
+        if (data.command === "FAN_ON") updated.fanStatus = true;
+        if (data.command === "FAN_OFF") updated.fanStatus = false;
+        if (data.controlMode) updated.controlMode = data.controlMode;
+        return updated;
+      })
+      setIsSwitchLoading(false);
+    })
 
     return () => {
       // Dọn sạch khi component unmount
-      socket.off("BE_DATA");
-      socket.off("BE_ALERT");
-      socket.disconnect();
+      socket.current.off("BE_DATA");
+      socket.current.off("BE_ALERT");
+      socket.current.off("FE_COMMAND");
+      socket.current.disconnect();
     };
   }, []);
 
@@ -364,40 +384,67 @@ function DashboardPage() {
 
 
   // 💡 Bật/Tắt đèn
-  const handleToggleLight = async () => {
+  const handleToggleLight = () => {
     if (!dashboardData) return;
-    // const newStatus = !dashboardData.lightStatus;
-    const newStatus = true;
-    setIsSwitchLoading(true);
+    const newStatus = !dashboardData.lightStatus;
+    const command = newStatus ? "LIGHT_ON" : "LIGHT_OFF";
+    setDashboardData(prev => ({
+      ...prev,
+      lightStatus: newStatus
+    }))
+    // setIsSwitchLoading(true);
 
-    try {
-      await toggleLight(newStatus);
-      setDashboardData((prev) => ({ ...prev, lightStatus: newStatus }));
-    } catch (err) {
-      console.error("⚠️ Lỗi khi đổi trạng thái đèn:", err);
-    } finally {
+    socket.current.emit("FE_COMMAND", {
+      deviceId: dashboardData.deviceId,
+      command: command
+    });
+
+    // Timeout nếu không nhận được phản hồi
+    setTimeout(() => {
       setIsSwitchLoading(false);
-    }
+    }, 5000);
   };
 
   // 🌬️ Bật/Tắt quạt
-  const handleToggleFan = async () => {
+  const handleToggleFan = () => {
     if (!dashboardData) return;
-    // const newStatus = !dashboardData.fanStatus;
-    const newStatus = true;
+    const newStatus = !dashboardData.fanStatus;
+    const command = newStatus ? "FAN_ON" : "FAN_OFF";
+    setDashboardData(prev => ({
+      ...prev,
+      fanStatus: newStatus
+    }))
+    // setIsSwitchLoading(true);
 
-    setIsSwitchLoading(true);
+    socket.current.emit("FE_COMMAND", {
+      deviceId: dashboardData.deviceId,
+      command: command
+    });
 
-    try {
-      await toggleFan(newStatus);
-      setDashboardData((prev) => ({ ...prev, fanStatus: newStatus }));
-    } catch (err) {
-      console.error("⚠️ Lỗi khi đổi trạng thái quạt:", err);
-    } finally {
+    // Timeout nếu không nhận được phản hồi
+    setTimeout(() => {
       setIsSwitchLoading(false);
-    }
+    }, 5000);
   };
 
+  useEffect(() => {
+    const initState = async () => {
+        // const deviceId = "nhakinh01";
+        const data = await getDeviceStatus();
+        const sensordata = Array.isArray(data) ? data[0] : data;
+        
+        if (data) {
+            setDashboardData(prev => ({
+                ...prev,
+                lightStatus: sensordata.relays?.LIGHT === 'ON', 
+                fanStatus: sensordata.relays?.FAN === 'ON',
+                controlMode: sensordata.controlMode || 'MANUAL'
+            }));
+        }
+    };
+
+    initState();
+  }, []);
 
   if (loading) {
     return (
@@ -769,7 +816,7 @@ function DashboardPage() {
               </Stack>
 
               <Switch
-                // checked={dashboardData.lightStatus}
+                checked={!!dashboardData.lightStatus}
                 onChange={handleToggleLight}
                 disabled={isSwitchLoading}
               />
@@ -795,7 +842,7 @@ function DashboardPage() {
               </Stack>
 
               <Switch
-                // checked={dashboardData.fanStatus}
+                checked={!!dashboardData.fanStatus}
                 onChange={handleToggleFan}
                 disabled={isSwitchLoading}
               />

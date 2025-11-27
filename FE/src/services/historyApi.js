@@ -1,5 +1,6 @@
 // src/services/historyApi.js
 import axios from "axios";
+import { setupInterceptors } from '../utils/axiosInterceptor';
 
 const API_URL = "http://localhost:8100/v1";
 
@@ -8,20 +9,10 @@ const apiClient = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  withCredentials: true, // Gửi cookie trong mỗi request
+  withCredentials: true,
 });
 
-// Interceptor để gửi token từ localStorage (backup nếu cookie không hoạt động)
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("accessToken");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+setupInterceptors(apiClient);
 
 // ✅ Lấy danh sách dữ liệu lịch sử theo ngày (hoặc toàn bộ)
 export const getHistoryByDate = async (deviceId, day) => {
