@@ -1,12 +1,11 @@
 import { WHITELIST_DOMAINS } from '~/utils/constants'
-import { env } from '~/config/environment'
 import { StatusCodes } from 'http-status-codes'
 import ApiError from '~/utils/ApiError'
 
 export const corsOptions = {
   origin: function (origin, callback) {
     //Cho phép test ở postman môi trường dev
-    if (!origin && env.BUILD_MODE === 'dev') {
+    if (!origin ) {
       return callback(null, true)
     }
 

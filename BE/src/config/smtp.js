@@ -12,6 +12,7 @@ const transporter = nodemailer.createTransport({
   }
 })
 
+// eslint-disable-next-line no-unused-vars
 transporter.verify((error, success) => {
   if (error) {
     Logger.error('Lỗi kết nối SMTP:', error)
