@@ -57,7 +57,7 @@ function LoginPage() {
                     phone: response.data.phone,
                     gender: "Nam"
                 }; try {
-                    localStorage.setItem("userToken", token);
+                    localStorage.setItem("accessToken", token);
                     await new Promise((resolve) => requestAnimationFrame(resolve));
                     localStorage.setItem("refreshToken", refreshToken);
                     await new Promise((resolve) => requestAnimationFrame(resolve));

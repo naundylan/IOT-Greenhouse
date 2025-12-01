@@ -1,4 +1,5 @@
 import axios from "axios";
+import { setupInterceptors } from '../utils/axiosInterceptor';
 
 const API_URL = "http://localhost:8100/v1/sensors";
 
@@ -7,45 +8,37 @@ const apiClient = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  withCredentials: true,
 });
+
+setupInterceptors(apiClient);
 
 // 🟢 Lấy toàn bộ dữ liệu history
 export const getHistoryDataChart = async (deviceId) => {
-  const token = localStorage.getItem("userToken");
-  const response = await apiClient.get(`/${deviceId}/data`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  const response = await apiClient.get(`/${deviceId}/data`);
   return response.data;
 };
 
-// 💡 Bật/tắt đèn
-export const toggleLight = async (status) => {
-  const token = localStorage.getItem("userToken");
-  const response = await apiClient.patch(
-    "sensor/light",
-    { status },
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
-  return response.data;
+
+export const getDeviceStatus = async () => {
+  try {
+    const response = await apiClient.get(``);
+    return response.data; 
+  } catch (error) {
+    console.error("Lỗi lấy trạng thái:", error);
+    return null;
+  }
 };
 
 // 🌬️ Bật/tắt quạt
 export const toggleFan = async (status) => {
-  const token = localStorage.getItem("userToken");
-  const response = await apiClient.patch(
-    "sensor/fan",
-    { status },
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
+  const response = await apiClient.patch("sensor/fan", { status });
   return response.data;
 };
 
 // 🔔 Lấy thông báo gần nhất
 export const getLatestNotifications = async () => {
-  const token = localStorage.getItem("userToken");
-  const response = await apiClient.get("notifications/latest", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const response = await apiClient.get("notifications/latest");
   return response.data;
 };
 // 📊 Lấy dữ liệu lịch sử theo ngày

@@ -1,3 +1,4 @@
+/* eslint-disable no-lonely-if */
 /* eslint-disable no-useless-catch */
 import { sensorModel } from '~/models/Sensor.model'
 import { sensorDataModel } from '~/models/SensorData.model'
@@ -8,10 +9,10 @@ import { StatusCodes } from 'http-status-codes'
 import { userModel } from '~/models/User.model'
 import { historyService } from '~/services/history.service'
 import { PUBLISH_MQTT } from '~/config/mqtt'
-import { BrevoProvider } from '~/providers/Brevo.provider'
 import { emitToUser } from '~/sockets/socket'
 import ExcelJs from 'exceljs'
 import { Logger } from '~/config/logger'
+import { sendEMailsmtp } from '~/config/smtp'
 
 const registerDevice = async ( userId, reqBody ) => {
   try {
@@ -127,13 +128,49 @@ const checkThreshold = (value, threshold) => {
   return null
 }
 
+//Khai báo biến đếm chống spam mail
+const alertTrackers = new Map()
+
+const trackBackoff = (level) => {
+  if (level === 0)
+    return 1*60*1000 // 1 phút
+  if (level === 1)
+    return 5*60*1000 // 5 phút
+  return 15*60*1000 // 15 phút
+}
+
+const syncAutoMode = async (sensorId, userId, deviceId, command) => {
+  if ( !command) return
+  try {
+    const parts = command.split('_')
+    if ( parts.length !==2 ) return
+    const relay = parts[0]
+    const state = parts[1]
+    await sensorModel.update(sensorId, {
+      [`relays.${relay}`]: state
+    })
+    emitToUser(userId, 'FE_COMMAND', {
+      deviceId,
+      command,
+      controlMode: 'AUTO'
+    })
+  } catch (error) {
+    Logger.error(`Lỗi đồng bộ: ${error.message}`)
+  }
+}
+
 const processThreshold = async (parameterName, value, thresholds, commands, alertPayload, commandTopic) => {
   const check = checkThreshold(value, thresholds)
   const isAuto = alertPayload.mode === 'AUTO'
-
+  const trackKey = `${alertPayload.sensorId}-${parameterName}`
   if (!check) {
+    // Xoá tracker nếu có
+    if (alertTrackers.has(trackKey)) {
+      alertTrackers.delete(trackKey)
+    }
     if ( isAuto && commands?.off) {
       await PUBLISH_MQTT(commandTopic, JSON.stringify({ command: commands.off }))
+      await syncAutoMode(alertPayload.sensorId, alertPayload.userId, alertPayload.deviceId, commands.off)
     }
     return}
   if ( !isAuto ) {
@@ -155,8 +192,36 @@ const processThreshold = async (parameterName, value, thresholds, commands, aler
     triggeredValue: value,
     message
   }
+  const { deviceId, ...payloadHistory } = finalPayload
 
   const command = check.status === 'HIGH' ? commands.high : commands.low
+
+  let shouldSendEmail = false
+  let tracker = alertTrackers.get(trackKey) || { count: 0, level: 0, lastAlertTime: 0 }
+  const currentTime = Date.now()
+  if ( tracker.count < 3) {
+    shouldSendEmail = true
+    tracker.count +=1
+    Logger.info(`Gửi mail lần thứ ${tracker.count}`)
+    if ( tracker.count ===3) {
+      const waitTime = trackBackoff(0)
+      tracker.lastAlertTime = currentTime + waitTime
+      Logger.info(`Đạt ngưỡng 3 lần, bắt đầu time chờ ${waitTime/60000} phút`)
+    }
+  } else {
+    if ( currentTime > tracker.lastAlertTime) {
+      shouldSendEmail = true
+      tracker.level +=1
+      const waitTime = trackBackoff(tracker.level)
+      tracker.nextAllowTime = currentTime + waitTime
+      Logger.info(`Hết time chờ bắt đầu gửi lại mail, level ${tracker.level}, time chờ tiếp theo ${waitTime/60000} phút`)
+    }
+    else {
+      shouldSendEmail = false
+      Logger.info('Chưa đến time chờ, bỏ qua gửi mail')
+    }
+  }
+  alertTrackers.set(trackKey, tracker)
 
   const user = await userModel.findOneById(alertPayload.userId)
 
@@ -173,7 +238,10 @@ const processThreshold = async (parameterName, value, thresholds, commands, aler
     (async () => {
       if (user && user.email) {
         try {
-          await BrevoProvider.sendEMail(user.email, customSubject, htmlContent)
+          if (!shouldSendEmail) {
+            return
+          }
+          await sendEMailsmtp(user.email, customSubject, htmlContent)
           // 1. LOG KHI GỬI THÀNH CÔNG
           Logger.info(`[ALERT] Đã gửi email cảnh báo ${parameterName} tới ${user.email} (Sensor: ${alertPayload.sensorName})`)
         } catch (emailError) {
@@ -186,9 +254,10 @@ const processThreshold = async (parameterName, value, thresholds, commands, aler
       }
     })()
     await Promise.all([ // Chạy song song
-      historyService.createNew(finalPayload),
+      historyService.createNew(payloadHistory),
       PUBLISH_MQTT(commandTopic, JSON.stringify({ command })),
 
+      syncAutoMode(alertPayload.sensorId, alertPayload.userId, deviceId, command),
       emitToUser(alertPayload.userId, 'BE_ALERT', {
         type: 'ALERT',
         sensorId: alertPayload.sensorId,
@@ -219,7 +288,8 @@ const checkAndCreateAlerts = async (sensor, data) => {
     userId: String(sensor.user),
     sensorId: String(sensor._id),
     sensorName: sensor.name,
-    mode: sensor.controlMode
+    mode: sensor.controlMode,
+    deviceId: sensor.deviceId
   }
 
   const commandTopic = `smartfarm/${sensor.deviceId}/commands`
@@ -229,7 +299,7 @@ const checkAndCreateAlerts = async (sensor, data) => {
     processThreshold('Độ ẩm KK', data.air_humidity, humidity, { high: 'DRYER_ON', low: 'DRYER_OFF', off: 'DRYER_OFF' }, alertPayload, commandTopic),
     processThreshold('Độ ẩm đất', data.soil_moisture, soilMoisture, { high: 'PUMP_OFF', low: 'PUMP_ON', off: 'PUMP_OFF' }, alertPayload, commandTopic),
     processThreshold('Nhiệt độ đất', data.soil_temperature, soilTemperature, { high: 'SOIL_ON', low: 'SOIL_OFF', off: 'SOIL_OFF' }, alertPayload, commandTopic),
-    processThreshold('Ánh sáng', data.light, light, { high: 'LAMP_ON', low: 'LAMP_OFF', off: 'LAMP_OFF' }, alertPayload, commandTopic)
+    processThreshold('Ánh sáng', data.light, light, { high: 'LIGHT_ON', low: 'LIGHT_OFF', off: 'LIGHT_OFF' }, alertPayload, commandTopic)
   ]
   await Promise.all(tasks)
 

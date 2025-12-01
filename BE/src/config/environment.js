@@ -27,5 +27,10 @@ export const env = {
 
   MQTT_URI: process.env.MQTT_URI,
   MQTT_TOPIC_DATA: process.env.MQTT_TOPIC_DATA,
-  MQTT_TOPIC_CMD: process.env.MQTT_TOPIC_CMD
+  MQTT_TOPIC_CMD: process.env.MQTT_TOPIC_CMD,
+
+  SMTP_HOST: process.env.SMTP_HOST,
+  SMTP_PORT: process.env.SMTP_PORT,
+  SMTP_EMAIL: process.env.SMTP_EMAIL,
+  SMTP_PASSWORD: process.env.SMTP_PASSWORD
 }

@@ -15,6 +15,8 @@ import { swaggerDocs } from './config/swagger'
 import { Logger } from './config/logger'
 import morgan from 'morgan'
 import chalk from 'chalk'
+import { initCronJobs } from './providers/Cron.provider'
+import { sensorDataModel } from './models/SensorData.model'
 
 const START_SERVER =() => {
   const app = express()
@@ -55,10 +57,12 @@ const START_SERVER =() => {
 (async () => {
   try {
     await CONNECT_DB()
+    await sensorDataModel.createIndex()
     await CONNECT_MQTT()
 
     await initializeMqttListener()
 
+    initCronJobs()
     START_SERVER()
   } catch (err) {
     Logger.error(err)
