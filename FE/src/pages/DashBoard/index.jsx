@@ -25,8 +25,9 @@ import {
 import { TextField } from "@mui/material";
 import { io } from "socket.io-client";
 import SensorChart from "./chartSensor";
-import { getHistoryAlertData } from "../../services/historyApi";  
+import { getHistoryAlertData } from "../../services/historyApi";
 
+const API_URL = "http://localhost:8100/v1/sensor";
 const SOCKET_URL = "http://localhost:8100";
 const METRIC_STATUS_LEVELS = {
   'CO₂': [
