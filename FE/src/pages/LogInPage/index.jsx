@@ -53,9 +53,9 @@ function LoginPage() {
                     avatar: response.data.avatar,
                     role: response.data.role,
                     displayName: response.data.displayName,
-                    dob: response.data.dob,
-                    phone: response.data.phone,
-                    gender: "Nam"
+                    dob: response.data.dateOfBirth,
+                    phone: response.data.phoneNumber,
+                    gender: response.data.gender,
                 }; try {
                     localStorage.setItem("accessToken", token);
                     await new Promise((resolve) => requestAnimationFrame(resolve));

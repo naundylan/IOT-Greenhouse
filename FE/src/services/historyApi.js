@@ -27,6 +27,19 @@ export const getHistoryByDate = async (deviceId, day) => {
     return [];
   }
 };
+// Lấy danh sách dữ liệu lịch sử theo giờ 
+export const getHourlyStats = async (deviceId, hourly) => {
+  try {
+    // Token sẽ được tự động thêm bởi interceptor
+    const res = await apiClient.get(`/sensors/${deviceId}/data/hourly`, {
+      params: { hourly }, // ví dụ BE hỗ trợ query ?hourly=2025-10-26
+    });
+    return res.data;
+  } catch (err) {
+    console.error("Lỗi khi lấy dữ liệu lịch sử theo giờ:", err);
+    return [];
+  } 
+};
 // ✅ Xuất báo cáo lịch sử (PDF/CSV)
 export const getExportHistoryByDate = async (deviceId, day) => {
   try {

@@ -19,6 +19,10 @@ import {
   Menu,
   MenuItem,
   Avatar,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import {
@@ -36,12 +40,10 @@ import { getHistoryByDate, getExportHistoryByDate } from "../../services/history
 
 export default function HistoryPage() {
   const navigate = useNavigate();
-
-  // 🧠 States
   const [selectedDate, setSelectedDate] = useState(() =>
     new Date().toISOString().split("T")[0]
   );
-  const [data, setData] = useState([]);
+  const [dataChart, setDataChart] = useState([]);
   const [dataTable, setDataTable] = useState([]);
   const [anchorEl, setAnchorEl] = useState(null);
 
@@ -53,26 +55,60 @@ export default function HistoryPage() {
     const fetchHistory = async () => {
       try {
         const res = await getHistoryByDate(deviceId, selectedDate);
-        setDataTable(res);
+
+        const mergedDataTables = res.map((item) => {
+          return {
+            time: item.time.split("T")[1].slice(0, 5),
+            light: item.light,
+            co2: item.co2,
+            soil_moisture: item.soil_moisture,
+            soil_temperature: item.soil_temperature,
+            air_temperature: item.air_temperature,
+            air_humidity: item.air_humidity,
+          };
+        });
+        setDataTable(mergedDataTables);
 
         // Ghép dữ liệu theo 24 giờ
-        const hours = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, "0")}:00`);
+        const hours = Array.from({ length: 24 }, (_, i) =>
+          `${i.toString().padStart(2, "0")}:00`
+        );
+
         const merged = hours.map((hour) => {
-          const found = res.find((d) => d.time.startsWith(hour));
-          return (
-            found || {
+          // Tìm bản ghi khớp giờ
+          const found = res.find((d) => {
+            const timeHour = d.time.split("T")[1].slice(0, 5);
+            return timeHour === hour;
+          });
+
+          // Nếu tìm thấy → trả dữ liệu gốc
+          if (found) {
+            return {
               time: hour,
-              light: null,
-              co2: null,
-              soil_moisture: null,
-              soil_temperature: null,
-              air_temperature: null,
-              air_humidity: null,
-            }
-          );
+              light: found.light,
+              co2: found.co2,
+              soil_moisture: found.soil_moisture,
+              soil_temperature: found.soil_temperature,
+              air_temperature: found.air_temperature,
+              air_humidity: found.air_humidity,
+            };
+          }
+
+          // Nếu không → trả ô trống
+          return {
+            time: hour,
+            light: null,
+            co2: null,
+            soil_moisture: null,
+            soil_temperature: null,
+            air_temperature: null,
+            air_humidity: null,
+          };
         });
 
-        setData(merged);
+        setDataChart(merged);
+
+
       } catch (err) {
         console.error("❌ Lỗi khi tải dữ liệu:", err);
         alert("Tải dữ liệu thất bại. Vui lòng thử lại sau.");
@@ -83,8 +119,8 @@ export default function HistoryPage() {
 
   // 📈 Tính trung bình
   const average = (key) =>
-    data.length
-      ? (data.reduce((a, b) => a + (b[key] || 0), 0) / data.length).toFixed(2)
+    dataTable.length
+      ? (dataTable.reduce((a, b) => a + (b[key] || 0), 0) / dataTable.length).toFixed(2)
       : 0;
 
   // 📤 Xuất Excel
@@ -190,7 +226,7 @@ export default function HistoryPage() {
           Biểu đồ thông số trong ngày
         </Typography>
         <ResponsiveContainer width="100%" height={400}>
-          <LineChart data={data}>
+          <LineChart data={dataChart}>
             <CartesianGrid strokeDasharray="3 3" stroke="#ccc" />
             <XAxis dataKey="time" />
             <YAxis yAxisId="left" orientation="left" domain={[0, 100]} />
