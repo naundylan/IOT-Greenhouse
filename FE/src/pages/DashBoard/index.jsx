@@ -24,8 +24,9 @@ import {
 import { TextField } from "@mui/material";
 import { io } from "socket.io-client";
 import SensorChart from "./chartSensor";
-import { getHistoryAlertData } from "../../services/historyApi";  
+import { getHistoryAlertData } from "../../services/historyApi";
 
+const API_URL = "http://localhost:8100/v1/sensor";
 const SOCKET_URL = "http://localhost:8100";
 const METRIC_STATUS_LEVELS = {
   'CO₂': [
@@ -123,8 +124,41 @@ function DashboardPage() {
     lightStatus: false,
     fanStatus: false
   });
-
+  const [loading, setLoading] = useState(true);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [isSwitchLoading, setIsSwitchLoading] = useState(false);
+  const openMenu = Boolean(anchorEl);
+  const navigate = useNavigate();
+  const [alertData, setAlertData] = useState([]);
   const [chartData, setChartData] = useState([]);
+  const handleClickMenu = (event) => setAnchorEl(event.currentTarget);
+  const handleCloseMenu = () => setAnchorEl(null);
+  const handleGoToSettings = () => {
+    navigate("/settings");
+    handleCloseMenu();
+  };
+  const handleLogout = () => {
+    localStorage.removeItem("userToken");
+    localStorage.removeItem("userData");
+    navigate("/login");
+    handleCloseMenu();
+  };
+  const handleHistory = () => {
+    navigate("/history");
+    handleCloseMenu();
+  };
+  const [openUserDialog, setOpenUserDialog] = useState(false);
+  const handleOpenUserDialog = () => setOpenUserDialog(true);
+  const handleCloseUserDialog = () => setOpenUserDialog(false);
+  const handleUpdateProfile = () => {
+    console.log("✅Thông tin đã cập nhập:", userInfo);
+    // TODO: gửi dữ liệu lên server
+    handleCloseUserDialog();
+  };
+  const handleOpenMetricDetail = (value, label) => {
+    setSelectedMetric({ value, label });
+    setOpenDialog(true);
+  }
   useEffect(() => {
     const fetchChartData = async () => {
       try {
@@ -190,7 +224,7 @@ function DashboardPage() {
     }
   }, [dashboardData?.deviceId]);
 
-  const [alertData, setAlertData] = useState([]);
+
   useEffect(() => {
     const fetchAlertData = async () => {
       try {
@@ -210,17 +244,13 @@ function DashboardPage() {
         // 💾 Lưu vào state
         setAlertData(formatted);
       } catch (error) {
-        console.error("❌ Lỗi lấy dữ liệu chart:", error);
+        console.error("❌ Lỗi lấy dữ liệu thông báo:", error);
       }
     };
     fetchAlertData()
   }, []);
 
-  const [loading, setLoading] = useState(true);
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [isSwitchLoading, setIsSwitchLoading] = useState(false);
-  const openMenu = Boolean(anchorEl);
-  const navigate = useNavigate();
+
   const [userInfo, setUserInfo] = useState({
     name: "Username",
     gender: "Non-binary",
@@ -328,37 +358,8 @@ function DashboardPage() {
     };
   }, []);
 
-  // 🔧 Handler Menu
-  const handleClickMenu = (event) => setAnchorEl(event.currentTarget);
-  const handleCloseMenu = () => setAnchorEl(null);
-  const handleGoToSettings = () => {
-    navigate("/settings");
-    handleCloseMenu();
-  };
-  const handleLogout = () => {
-    localStorage.removeItem("userToken");
-    localStorage.removeItem("userData");
-    navigate("/login");
-    handleCloseMenu();
-  };
-  const handleHistory = () => {
-    navigate("/history");
-    handleCloseMenu();
-  };
-  const [openUserDialog, setOpenUserDialog] = useState(false);
-  const handleOpenUserDialog = () => setOpenUserDialog(true);
-  const handleCloseUserDialog = () => setOpenUserDialog(false);
-  const handleUpdateProfile = () => {
-    console.log("✅Thông tin đã cập nhập:", userInfo);
-    // TODO: gửi dữ liệu lên server
-    handleCloseUserDialog();
-  };
-  const handleOpenMetricDetail = (value, label) => {
-    setSelectedMetric({ value, label });
-    setOpenDialog(true);
-  }
 
-
+// Load thông tin user từ localStorage
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -426,21 +427,20 @@ function DashboardPage() {
       setIsSwitchLoading(false);
     }, 5000);
   };
-
   useEffect(() => {
     const initState = async () => {
-        // const deviceId = "nhakinh01";
-        const data = await getDeviceStatus();
-        const sensordata = Array.isArray(data) ? data[0] : data;
-        
-        if (data) {
-            setDashboardData(prev => ({
-                ...prev,
-                lightStatus: sensordata.relays?.LIGHT === 'ON', 
-                fanStatus: sensordata.relays?.FAN === 'ON',
-                controlMode: sensordata.controlMode || 'MANUAL'
-            }));
-        }
+      // const deviceId = "nhakinh01";
+      const data = await getDeviceStatus();
+      const sensordata = Array.isArray(data) ? data[0] : data;
+
+      if (data) {
+        setDashboardData(prev => ({
+          ...prev,
+          lightStatus: sensordata.relays?.LIGHT === 'ON',
+          fanStatus: sensordata.relays?.FAN === 'ON',
+          controlMode: sensordata.controlMode || 'MANUAL'
+        }));
+      }
     };
 
     initState();
@@ -450,7 +450,7 @@ function DashboardPage() {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
         <CircularProgress />
-        <Typography sx={{ ml: 2 }}>Đang tải dữ liệu mockup...</Typography>
+        <Typography sx={{ ml: 2 }}>Đang tải dữ liệu </Typography>
       </Box>
     );
   }

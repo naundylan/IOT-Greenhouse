@@ -46,6 +46,7 @@ const defaultPresets = {
     { title: "Ánh sáng", min: 60, max: 100, unit: "lux", type: "Environment" },
   ],
 };
+const API_URL = "http://localhost:8100/v1/update";
 
 export default function AccountSettings() {
   const [anchorEl, setAnchorEl] = useState(null);
@@ -321,7 +322,7 @@ export default function AccountSettings() {
 
                 {[
                   { label: "Họ và tên", field: "displayName" },
-                  { label: "Giới tính", field: "Nam" },
+                  { label: "Giới tính", field: "gender" },
                   { label: "Ngày sinh", field: "dob" },
                   { label: "Email", field: "email" },
                   { label: "Số điện thoại", field: "phone" },
