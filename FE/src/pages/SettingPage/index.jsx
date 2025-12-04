@@ -19,6 +19,7 @@ import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import ShareIcon from "@mui/icons-material/Share";
+import { logout } from "../../services/authService";
 
 const defaultPresets = {
   "4 season lettuce": [
@@ -54,9 +55,8 @@ export default function AccountSettings() {
 
   const handleClickMenu = (event) => setAnchorEl(event.currentTarget);
   const handleCloseMenu = () => setAnchorEl(null);
-  const handleLogout = () => {
-    localStorage.removeItem("userToken");
-    localStorage.removeItem("userData");
+  const handleLogout = async () => {
+    await logout ();
     navigate("/login");
   };
 

@@ -11,10 +11,10 @@ const apiClient = axios.create({
 
 setupInterceptors(apiClient);
 
-export const updateUserProfile = (profileData) => {
-    return apiClient.put('/update', profileData); 
+export const updateUserProfile = async (profileData) => {
+    return await apiClient.put('/update', profileData); 
 };
 
-export const changePassword = (passwordData) => {
-    return apiClient.post('/change-password', passwordData);
+export const changePassword = async (passwordData) => {
+    return await apiClient.post('/password/reset', passwordData);
 };

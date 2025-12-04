@@ -3,7 +3,7 @@ import { Box, Typography, Paper, CircularProgress } from '@mui/material';
 import MarkEmailReadIcon from '@mui/icons-material/MarkEmailRead';
 import ErrorIcon from '@mui/icons-material/Error';
 import { Link, useLocation } from 'react-router-dom';
-import { getCurrentUser } from '../../services/authService';
+import { verifyEmail } from '../../services/authService';
 
 
 function VerifyEmailSuccess() {
@@ -23,7 +23,7 @@ function VerifyEmailSuccess() {
                 }
 
                 const payload = { email, token };
-                const response = await getCurrentUser(payload);
+                const response = await verifyEmail(payload);
 
                 if (response.status === 200) {
                     setStatus('success');
