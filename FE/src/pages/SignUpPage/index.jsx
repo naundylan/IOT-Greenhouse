@@ -17,7 +17,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import LockIcon from '@mui/icons-material/Lock';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
-import { registerUser } from '../../services/authService';
+import { signup } from '../../services/authService';
 import StyledTextField from '../../components/StyledTextField';
 
 
@@ -57,7 +57,7 @@ function SignUpPage() {
                 username: formData.username,
                 password: formData.password,
             }
-            const response = await registerUser(payload);
+            const response = await signup(payload);
             console.log("Đăng ký thành công:", response);
 
             alert("Đăng ký tài khoản thành công! Vui lòng xác thực email trước khi đăng nhập.");

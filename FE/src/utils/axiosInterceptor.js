@@ -16,17 +16,6 @@ const processQueue = (error, token = null) => {
 
 
 export const setupInterceptors = (apiClient) => {
-  apiClient.interceptors.request.use(
-    (config) => {
-      const token = localStorage.getItem('accessToken');
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-      return config;
-    },
-    (error) => Promise.reject(error)
-  );
-
   apiClient.interceptors.response.use(
     (response) => response,
     async (error) => {
@@ -37,37 +26,30 @@ export const setupInterceptors = (apiClient) => {
           return new Promise((resolve, reject) => {
             failedQueue.push({ resolve, reject });
           })
-            .then((token) => {
-              originalRequest.headers['Authorization'] = 'Bearer ' + token;
-              return apiClient(originalRequest);
+            .then(() => {
+              apiClient(originalRequest);
             })
-            .catch((err) => Promise.reject(err));
+            .catch(err => Promise.reject(err));
         }
 
         originalRequest._retry = true;
         isRefreshing = true;
 
         try {
-          // Gọi refresh token API
-          const response = await axios.get('http://localhost:8100/v1/users/refresh_token', {
-            withCredentials: true,
+          // ✅ Gọi API refresh token (cookie tự động gửi)
+          await axios.get('http://localhost:8100/v1/users/refresh_token', {
+            withCredentials: true
           });
 
-          const { accessToken } = response.data;
+          processQueue(null);
 
-          localStorage.setItem('accessToken', accessToken);
-
-          originalRequest.headers['Authorization'] = 'Bearer ' + accessToken;
-
-          processQueue(null, accessToken);
-
+          // Retry request gốc
           return apiClient(originalRequest);
         } catch (refreshError) {
-          processQueue(refreshError, null);
+          processQueue(refreshError);
 
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
           localStorage.removeItem('userData');
+          localStorage.removeItem('lastFetchedDay');
 
           window.location.href = '/login';
 
@@ -78,13 +60,11 @@ export const setupInterceptors = (apiClient) => {
       }
 
       if (error.response?.status === 401) {
-        localStorage.clear();
+        localStorage.removeItem('userData');
         window.location.href = '/login';
       }
 
       return Promise.reject(error);
     }
   );
-
-  return apiClient;
 };

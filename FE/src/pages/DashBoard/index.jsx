@@ -24,7 +24,8 @@ import {
 import { TextField } from "@mui/material";
 import { io } from "socket.io-client";
 import SensorChart from "./chartSensor";
-import { getHistoryAlertData } from "../../services/historyApi";
+import { getHistoryAlertData } from "../../services/historyApi";  
+import { logout } from "../../services/authService";
 
 const API_URL = "http://localhost:8100/v1/sensor";
 const SOCKET_URL = "http://localhost:8100";
@@ -131,34 +132,34 @@ function DashboardPage() {
   const navigate = useNavigate();
   const [alertData, setAlertData] = useState([]);
   const [chartData, setChartData] = useState([]);
-  const handleClickMenu = (event) => setAnchorEl(event.currentTarget);
-  const handleCloseMenu = () => setAnchorEl(null);
-  const handleGoToSettings = () => {
-    navigate("/settings");
-    handleCloseMenu();
-  };
-  const handleLogout = () => {
-    localStorage.removeItem("userToken");
-    localStorage.removeItem("userData");
-    navigate("/login");
-    handleCloseMenu();
-  };
-  const handleHistory = () => {
-    navigate("/history");
-    handleCloseMenu();
-  };
-  const [openUserDialog, setOpenUserDialog] = useState(false);
-  const handleOpenUserDialog = () => setOpenUserDialog(true);
-  const handleCloseUserDialog = () => setOpenUserDialog(false);
-  const handleUpdateProfile = () => {
-    console.log("✅Thông tin đã cập nhập:", userInfo);
-    // TODO: gửi dữ liệu lên server
-    handleCloseUserDialog();
-  };
-  const handleOpenMetricDetail = (value, label) => {
-    setSelectedMetric({ value, label });
-    setOpenDialog(true);
-  }
+  // const handleClickMenu = (event) => setAnchorEl(event.currentTarget);
+  // const handleCloseMenu = () => setAnchorEl(null);
+  // const handleGoToSettings = () => {
+  //   navigate("/settings");
+  //   handleCloseMenu();
+  // };
+  // const handleLogout = () => {
+  //   localStorage.removeItem("userToken");
+  //   localStorage.removeItem("userData");
+  //   navigate("/login");
+  //   handleCloseMenu();
+  // };
+  // const handleHistory = () => {
+  //   navigate("/history");
+  //   handleCloseMenu();
+  // };
+  // const [openUserDialog, setOpenUserDialog] = useState(false);
+  // const handleOpenUserDialog = () => setOpenUserDialog(true);
+  // const handleCloseUserDialog = () => setOpenUserDialog(false);
+  // const handleUpdateProfile = () => {
+  //   console.log("✅Thông tin đã cập nhập:", userInfo);
+  //   // TODO: gửi dữ liệu lên server
+  //   handleCloseUserDialog();
+  // };
+  // const handleOpenMetricDetail = (value, label) => {
+  //   setSelectedMetric({ value, label });
+  //   setOpenDialog(true);
+  // }
   useEffect(() => {
     const fetchChartData = async () => {
       try {
@@ -231,15 +232,26 @@ function DashboardPage() {
         // 🔄 Lấy dữ liệu lịch sử từ API
         const raw = await getHistoryAlertData();
         console.log("🚨 Dữ liệu alert lịch sử:", raw);
-
+        let data = []
+        data = Object.values(raw).flat();
         // 🔧 Format dữ liệu
-        const formatted = raw.map((item) => ({
-          time: item.timestamp,
-          parameterName: item.parameterName,
-          triggeredValue: formatNumber(item.triggeredValue),
-          message: item.message,
-          type: item.type || "warning"
-        }));
+        const formatted = data.map((item) => {
+          
+            const dateObj = new Date(item.createdAt);
+            let timeDisplay = dateObj.toLocaleString('vi-VN', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
+            })
+            
+            return {
+                id: item._id,
+                time: timeDisplay, 
+                parameterName: item.parameterName,
+                triggeredValue: formatNumber(item.triggeredValue),
+                message: item.message,
+                type: item.type || "warning"
+            }});
 
         // 💾 Lưu vào state
         setAlertData(formatted);
@@ -266,15 +278,15 @@ function DashboardPage() {
   const socket = useRef(null);
   // ⚡ SOCKET.IO CLIENT
   useEffect(() => {
-    const token = localStorage.getItem("userToken");
     socket.current = io(SOCKET_URL, {
       transports: ["websocket"],
-      withCredentials: true
+      withCredentials: true,
+      autoConnect: true,
     });
 
     socket.current.on("connect", () => {
       setSocketStatus("Hoạt động");
-      socket.current.emit('AUTH', token);
+      // socket.current.emit('AUTH', token);
     });
 
     socket.current.on("disconnect", () => {
@@ -319,8 +331,21 @@ function DashboardPage() {
     socket.current.on("BE_ALERT", (data) => {
       console.log("🚨 Alert nhận được từ BE:", data);
       setAlertData((prevData) => {
+        let rawTime = data.timestamp 
+
+        // Nếu chuỗi time chưa có chữ 'Z' ở cuối thì thêm vào để báo là giờ UTC
+
+        const dateObj = new Date(rawTime);
+        
+        const timeDisplay = dateObj.toLocaleTimeString('vi-VN', {
+            timeZone: 'Asia/Ho_Chi_Minh',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+        });
+        console.log("⏰ Time hiển thị sau khi format:", timeDisplay);
         const newRecord = {
-          time: data.timestamp,
+          time: timeDisplay,
           parameterName: data.parameterName,
           triggeredValue: formatNumber(data.triggeredValue),
           message: data.message,
@@ -357,6 +382,35 @@ function DashboardPage() {
       socket.current.disconnect();
     };
   }, []);
+
+  // 🔧 Handler Menu
+  const handleClickMenu = (event) => setAnchorEl(event.currentTarget);
+  const handleCloseMenu = () => setAnchorEl(null);
+  const handleGoToSettings = () => {
+    navigate("/settings");
+    handleCloseMenu();
+  };
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login");
+    handleCloseMenu();
+  };
+  const handleHistory = () => {
+    navigate("/history");
+    handleCloseMenu();
+  };
+  const [openUserDialog, setOpenUserDialog] = useState(false);
+  const handleOpenUserDialog = () => setOpenUserDialog(true);
+  const handleCloseUserDialog = () => setOpenUserDialog(false);
+  const handleUpdateProfile = () => {
+    console.log("✅Thông tin đã cập nhập:", userInfo);
+    // TODO: gửi dữ liệu lên server
+    handleCloseUserDialog();
+  };
+  const handleOpenMetricDetail = (value, label) => {
+    setSelectedMetric({ value, label });
+    setOpenDialog(true);
+  }
 
 
 // Load thông tin user từ localStorage
@@ -519,6 +573,14 @@ function DashboardPage() {
             borderRadius: 6,
             background: "linear-gradient(to bottom right, #184d1bff, #49b74fff)",
             color: "white",
+            maxHeight: {xs: "400px", md: "calc(100%)"},
+            overflowY: "auto",
+            "&::-webkit-scrollbar": { width: "5px" },
+            "&::-webkit-scrollbar-track": { backgroundColor: "rgba(255,255,255,0.1)" },
+            "&::-webkit-scrollbar-thumb": { backgroundColor: "rgba(255,255,255,0.5)", borderRadius: "10px" },
+            "&::-webkit-scrollbar-thumb:hover": { background: "white" },
+            pr: 1,
+            mt: 2 
           }}
         >
           <Stack spacing={2}>
@@ -851,7 +913,16 @@ function DashboardPage() {
         </Card>
 
         {/* 📊 Cột phải: Thông báo + Biểu đồ */}
-        <Card sx={{ p: 3, borderRadius: 3, background: "rgba(255,255,255,0.9)" }}>
+        <Card sx={{ p: 3, 
+          background: "rgba(255,255,255,0.9)" ,
+          overflowY: "auto",
+            "&::-webkit-scrollbar": { width: "5px" },
+            "&::-webkit-scrollbar-track": { backgroundColor: "#757575", borderRadius: "10px" },
+            "&::-webkit-scrollbar-thumb": { backgroundColor: "rgba(255,255,255,0.5)", borderRadius: "10px" },
+            "&::-webkit-scrollbar-thumb:hover": { background: "rgba(255,255,255,0.1)" },
+            pr: 1,
+            mt: 2 
+          }}>
           <Stack spacing={4}>
             <Box>
               <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
@@ -862,8 +933,15 @@ function DashboardPage() {
               </Stack>
               <List dense
                 sx={{
-                  maxHeight: 300,         // 👈 chiều cao tối đa vùng cuộn
+                  height: "300px",         // 👈 chiều cao tối đa vùng cuộn
                   overflowY: "auto",      // 👈 bật scroll dọc
+                  bgcolor: "#ecececff",
+                  borderRadius: 2,
+                  border: "1px solid #eee",
+                  "&::-webkit-scrollbar": { width: "6px" },
+                  "&::-webkit-scrollbar-track": { background: "#e0e0e0", borderRadius: "4px" },
+                  "&::-webkit-scrollbar-thumb": { background: "#757575", borderRadius: "4px" },
+                  "&::-webkit-scrollbar-thumb:hover": { background: "#424242" },
                   pr: 1,                  // padding phải nhẹ cho scrollbar
                 }}>
                 {alertData.map((n) => (

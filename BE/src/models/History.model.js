@@ -51,6 +51,7 @@ const deleteOldHistoryDataJob = async () => {
   try {
     const today = new Date()
     const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0).getTime()
+    Logger.info('[CRON] Bắt đầu xóa dữ liệu lịch sử cũ...')
     await GET_DB().collection(HISTORY_COLLECTION_NAME).deleteMany({
       createdAt: { $lt: startOfToday }
     })

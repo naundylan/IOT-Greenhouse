@@ -59,7 +59,7 @@ export const getExportHistoryByDate = async (deviceId, day) => {
 export const getHistoryAlertData = async () => {
   try {
     // Token sẽ được tự động thêm bởi interceptor
-    const res = await apiClient.get("/history");
+    const res = await apiClient.get("/history/");
     return res.data;
   } catch (err) {
     console.error("Lỗi khi lấy dữ liệu lịch sử alert:", err);

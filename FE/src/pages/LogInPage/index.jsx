@@ -14,7 +14,7 @@ import EmailIcon from '@mui/icons-material/Email';
 import LockIcon from '@mui/icons-material/Lock';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
-import { loginUser } from '../../services/authService';
+import { login } from '../../services/authService';
 import StyledTextField from '../../components/StyledTextField';
 
 function LoginPage() {
@@ -41,33 +41,35 @@ function LoginPage() {
         setLoading(true);
 
         try {
-
-            const response = await loginUser(formData);
-            if (response.data.isActive === true) {
-                const token = response.data.accessToken;
-                const refreshToken = response.data.refreshToken;
+            const response = await login(formData.email, formData.password);
+            
+            if (response.isActive === true) {
+                // const token = response.data.accessToken;
+                // const refreshToken = response.data.refreshToken;
                 const userData = {
-                    id: response.data._id,
-                    name: response.data.username,
-                    email: response.data.email,
-                    avatar: response.data.avatar,
-                    role: response.data.role,
-                    displayName: response.data.displayName,
-                    dob: response.data.dateOfBirth,
-                    phone: response.data.phoneNumber,
-                    gender: response.data.gender,
-                }; try {
-                    localStorage.setItem("accessToken", token);
-                    await new Promise((resolve) => requestAnimationFrame(resolve));
-                    localStorage.setItem("refreshToken", refreshToken);
-                    await new Promise((resolve) => requestAnimationFrame(resolve));
+                    id: response._id,
+                    name: response.username,
+                    email: response.email,
+                    avatar: response.avatar,
+                    role: response.role,
+                    displayName: response.displayName,
+                    dob: response.dob,
+                    phone: response.phone,
+                    gender: "Nam"
+                }; 
+                try {
+                    // localStorage.setItem("accessToken", token);
+                    // await new Promise((resolve) => requestAnimationFrame(resolve));
+                    // localStorage.setItem("refreshToken", refreshToken);
+                    // await new Promise((resolve) => requestAnimationFrame(resolve));
                     localStorage.setItem("userData", JSON.stringify(userData));
-                    await new Promise((resolve) => requestAnimationFrame(resolve));
+                    navigate("/dashboard", { replace: true });
+                    // await new Promise((resolve) => requestAnimationFrame(resolve));
                 } catch (err) {
                     console.error("LocalStorage write error:", err);
                 }
-                console.log('Đăng nhập thành công:', response.data);
-                navigate("/dashboard", { replace: true });
+                // console.log('Đăng nhập thành công:', response.data);
+                // navigate("/dashboard", { replace: true });
             } else {
                 setError('Tài khoản chưa được kích hoạt. Vui lòng kiểm tra email để xác minh tài khoản.');
             }
