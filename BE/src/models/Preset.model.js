@@ -78,12 +78,19 @@ const update = async(presetId, updateData) => {
       { $set: updateData },
       { returnDocument: 'after' } // trả về sau khi cập nhật
     )
-    return result.value
+    return result
   } catch (error) {
     throw new Error(error)
   }
 }
 
+const findAllByPlantId = async (plantId) => {
+  try {
+    return await GET_DB().collection(PRESET_COLLECTION_NAME).find({ plantId: new ObjectId(plantId), _destroy: false }).toArray()
+  } catch (error) {
+    throw new Error(error)
+  }
+}
 
 export const presetModel = {
   PRESET_COLLECTION_NAME,
@@ -91,5 +98,6 @@ export const presetModel = {
   createNew,
   findOneById,
   deleteManyByPlantId,
-  update
+  update,
+  findAllByPlantId
 }

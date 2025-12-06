@@ -60,7 +60,17 @@ const update = async (presetId, updateData) => {
   } catch (error) { throw error }
 }
 
+const getAll = async (plantId) => {
+  try {
+    const presets = await presetModel.findAllByPlantId(plantId)
+    return presets
+  } catch (error) {
+    throw error
+  }
+}
+
 export const presetService = {
   createNew,
-  update
+  update,
+  getAll
 }

@@ -3,7 +3,11 @@ import { plantService } from '~/services/plant.service'
 
 const createNew = async(req, res, next) => {
   try {
-    const createPlant = await plantService.createNew(req.body)
+    const data = {
+      ...req.body,
+      userId: req.jwtDecoded._id
+    }
+    const createPlant = await plantService.createNew(data)
     res.status(StatusCodes.CREATED).json(createPlant)
   } catch (error) { next(error) }
 }
@@ -18,7 +22,8 @@ const getDetails = async(req, res, next) => {
 
 const getAll = async(req, res, next) => {
   try {
-    const result = await plantService.getAll()
+    const userId = req.jwtDecoded._id
+    const result = await plantService.getAll(userId)
     res.status(StatusCodes.OK).json(result)
   } catch (error) { next(error) }
 }

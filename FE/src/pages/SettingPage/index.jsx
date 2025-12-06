@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -20,39 +20,12 @@ import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import ShareIcon from "@mui/icons-material/Share";
 import { logout } from "../../services/authService";
-
-const defaultPresets = {
-  "4 season lettuce": [
-    { title: "CO₂", min: 1200, max: 1500, unit: "ppm", type: "Microclimate" },
-    { title: "Độ ẩm đất", min: 40, max: 70, unit: "%", type: "Soil" },
-    { title: "Nhiệt độ không khí", min: 18, max: 32, unit: "°C", type: "Microclimate" },
-    { title: "Nhiệt độ đất", min: 20, max: 35, unit: "°C", type: "Soil" },
-    { title: "Độ ẩm không khí", min: 50, max: 80, unit: "%", type: "Microclimate" },
-    { title: "Ánh sáng", min: 40, max: 70, unit: "lux", type: "Environment" },
-  ],
-  Spinach: [
-    { title: "CO₂", min: 1000, max: 1400, unit: "ppm", type: "Microclimate" },
-    { title: "Độ ẩm đất", min: 45, max: 75, unit: "%", type: "Soil" },
-    { title: "Nhiệt độ không khí", min: 15, max: 28, unit: "°C", type: "Microclimate" },
-    { title: "Nhiệt độ đất", min: 18, max: 30, unit: "°C", type: "Soil" },
-    { title: "Độ ẩm không khí", min: 55, max: 85, unit: "%", type: "Microclimate" },
-    { title: "Ánh sáng", min: 50, max: 90, unit: "lux", type: "Environment" },
-  ],
-  Tomato: [
-    { title: "CO₂", min: 1300, max: 1600, unit: "ppm", type: "Microclimate" },
-    { title: "Độ ẩm đất", min: 50, max: 80, unit: "%", type: "Soil" },
-    { title: "Nhiệt độ không khí", min: 20, max: 35, unit: "°C", type: "Microclimate" },
-    { title: "Nhiệt độ đất", min: 22, max: 30, unit: "°C", type: "Soil" },
-    { title: "Độ ẩm không khí", min: 60, max: 85, unit: "%", type: "Microclimate" },
-    { title: "Ánh sáng", min: 60, max: 100, unit: "lux", type: "Environment" },
-  ],
-};
-const API_URL = "http://localhost:8100/v1/update";
+import { getPlants, createPlant, updatePlant, deletePlant, getPreset, createPreset, updatePreset } from '../../services/alertApi'
+import { SENSOR_PRESETS } from "../../constants/Preset";
 
 export default function AccountSettings() {
   const [anchorEl, setAnchorEl] = useState(null);
   const navigate = useNavigate();
-
   const handleClickMenu = (event) => setAnchorEl(event.currentTarget);
   const handleCloseMenu = () => setAnchorEl(null);
   const handleLogout = async () => {
@@ -74,47 +47,159 @@ export default function AccountSettings() {
   const [selected, setSelected] = useState("Tài khoản");
   const [avatar, setAvatar] = useState(null);
   const [userData, setUserData] = useState(JSON.parse(localStorage.getItem("userData")));
-  const [plant, setPlant] = React.useState("4 season lettuce");
+  const [plantData, setPlantData] = useState('');
+  const [isPlantData, setIsPlantData] = useState(false);
+  const [plantId, setPlantId] = useState(null);
+  const [displayAlert, setDisplayAlert] = useState([]);
+  const [presetId, setPresetId] = useState(null);
+  useEffect(() => {
+    const getPlantData = async () => {
+      const data = await getPlants();
+      if(data  && data.length > 0){
+        setPlantData(data[0].plantName);
+        setIsPlantData(true);
+        setPlantId(data[0]._id);
+      }
+      else {
+        setIsPlantData(false);
+        setPlantData('');
+        setPlantId(null);
+      }
+    }
+    getPlantData();
+  },[])
 
-  const [presets, setPresets] = React.useState(() => {
-    const saved = localStorage.getItem("Thông báo");
-    return saved ? JSON.parse(saved) : defaultPresets;
-  });
+  useEffect(() => {
+    const getPresetData = async () => {
+      const setEmptyData = () => {
+        const empty = SENSOR_PRESETS.map((preset) => ({...preset, min: 0, max: 0, originKey: preset.key}));
+        setDisplayAlert(empty);
+        setPresetId(null);
+      }
+      if (!plantId) {
+        setEmptyData();
+        return;
+      }
+      const res = await getPreset(plantId);
+      const data = Array.isArray(res)? res[0] : null;
+      if (data) {
+        const formatData = SENSOR_PRESETS.map((preset) => {
+          const value = data[preset.key]
+          return {
+            ...preset,
+            min: value?.min || 0,
+            max: value?.max || 0,
+            originKey: preset.key
+          }
+        })
+        setDisplayAlert(formatData);
+        setPresetId(data._id);
+      } else {
+        setEmptyData()
+      }
+    }
+    getPresetData();
+  },[plantId])
 
-  // ✅ useEffect nằm ngoài useState
-  React.useEffect(() => {
-    const saved = localStorage.getItem("Thông báo");
-    const oldPresets = saved ? JSON.parse(saved) : {};
+  const handleAddNewPlant = async () => {
+    if ( !plantData.trim())  return;
+    try {
+      const payload = {
+        plantName: plantData.trim(),
+        userId: userData._id
+      }
+      const data = await createPlant(payload)
+      if (data) {
+      const defaultPreset = {
+        plantId: data._id,
+        co2: { min: 800, max: 1200 },
+        humidity: { min: 22, max: 28 },
+        airTemperature: { min: 22, max: 28 },
+        soilMoisture: { min: 60, max: 80 },
+        soilTemperature: { min: 50, max: 70 },
+        light: { min: 800, max: 1200 }
+      };
+      
+      await createPreset(defaultPreset);
+      
+      // Update state - useEffect sẽ tự động load preset mới
+      setPlantData(data.plantName);
+      setPlantId(data._id); // ✅ Trigger useEffect load preset
+      setIsPlantData(true);
+    }
+    } catch (error) {
+      console.error("Error creating new plant:", error);
+    }
+  }
+  const handleUpdatePlant = async () => {
+    try {
+      const payload = {
+        plantName: plantData.trim()
+      }
+      await updatePlant(plantId, payload)
+    } catch (error) {
+      console.error("Error updating plant:", error);
+    }
+  }
 
-    const merged = { ...defaultPresets };
+  const onSaveUpdate = async () => {
+    await handleUpdatePlant();
+    setIsEditing(false);
+  }
 
-    Object.keys(oldPresets).forEach((plantKey) => {
-      merged[plantKey] = oldPresets[plantKey].map((oldItem, i) => {
-        const defItem = defaultPresets[plantKey]?.[i];
-        return defItem ? { ...defItem, ...oldItem } : oldItem;
-      });
-    });
+  const handleDeletePlant = async () => {
+    try {
+      await deletePlant(plantId);
+      setPlantData('');
+      setIsPlantData(false);
+      setPlantId(null);
+      setDisplayAlert([]);
+      setPresetId(null);
+    } catch (error) {
+      console.error("Error deleting plant:", error);
+    }
+  }
 
-    setPresets(merged);
-    localStorage.setItem("Thông báo", JSON.stringify(merged));
-  }, []);
+  const handleUpdatePreset = (async () => {
+      if (!plantId){
+        alert("Điền tên của cây trồng trước");
+        return;
+      }
+      const presetData = {};
+      displayAlert.forEach((item) => {
+        if (item.originKey) {
+      presetData[item.originKey] = {
+        min: Number(item.min), 
+        max: Number(item.max)
+      }
+      }})
+    try {
+      const res = await updatePreset(presetId, presetData);
+      if(res)
+        alert("Cập nhật preset thành công");
+    } catch (error) {
+      console.error("Lỗi khi lưu:", error);
+      alert("Cập nhật thất bại.");
+    }
+  })
 
 
-
-  const handleSavePlant = () => {
-    localStorage.setItem("Thông báo", JSON.stringify(presets));
-    alert(`✅ Settings saved for ${plant}!`);
-  };
   const handleSave = () => setIsEditing(false);
   const handleChange = (field, value) => {
     setUserData((prev) => ({ ...prev, [field]: value }));
   };
-  const handleChangeValue = (paramIndex, key, value) => {
-    setPresets((prev) => {
-      const newPresets = { ...prev };
-      newPresets[plant][paramIndex][key] = value;
-      return newPresets;
+  const handleChangeValue = (index, field, value) => {
+    setDisplayAlert(prevList => {
+    return prevList.map((item, idx) => {
+      if (idx === index) {
+        return { 
+          ...item, 
+          [field]: value
+        };
+      }
+      return item;
     });
+  });
   };
   const handleAvatarChange = (e) => {
     const file = e.target.files[0];
@@ -390,33 +475,68 @@ export default function AccountSettings() {
 
               {/* STATE HOẶC LOGIC */}
               {(() => {
-
-
-                // state cho cây trồng và preset
-                console.log(presets[plant]);
-
                 return (
                   <Box>
                     {/* CHỌN CÂY */}
-                    <Typography variant="h6" fontWeight="bold" sx={{ mb: 1 }}>
+                    <Typography variant="h6" fontWeight="bold" sx={{ mb: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }} >
                       Chọn loại cây
+                    <Box display="flex" gap={1}>
+                      {isPlantData ? ( 
+                      <>
+                      {isEditing ?
+                      (
+                        <Button
+                          variant="contained"
+                          color="success"
+                          size="small"
+                          onClick={onSaveUpdate}
+                        >
+                          Lưu
+                        </Button>
+                      ):(
+                        <Button
+                          variant="contained"
+                          color="primary"
+                          size="small"
+                          onClick={() => setIsEditing(true)}
+                        >
+                          Sửa
+                        </Button>
+                      )}
+                      <Button
+                        variant="contained"
+                        color="error"
+                        size="small"
+                        onClick={handleDeletePlant}
+                      >
+                        Xóa
+                      </Button>
+                      </>
+                    ) : (
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        size="small"
+                        onClick={handleAddNewPlant}
+                        sx = {{ whiteSpace: 'nowrap'}}
+                      >
+                        Thêm mới
+                      </Button>
+                    )}
+                    </Box>
                     </Typography>
                     <TextField
-                      select
                       fullWidth
                       size="small"
-                      value={plant}
-                      onChange={(e) => setPlant(e.target.value)}
-                      SelectProps={{ native: true }}
+                      value={plantData}
+                      onChange={(e) => setPlantData(e.target.value)}
+                      InputProps={{
+                        readOnly: isPlantData  && !isEditing, 
+                      }}
                       sx={{ mb: 3, background: "#fff", borderRadius: 1 }}
                     >
-                      {Object.keys(presets).map((p) => (
-                        <option key={p} value={p}>
-                          {p}
-                        </option>
-                      ))}
                     </TextField>
-
+                    
                     {/* DANH SÁCH THÔNG SỐ */}
                     <Typography
                       variant="h6"
@@ -429,7 +549,7 @@ export default function AccountSettings() {
                       }}
                     >
                       Danh sách cảnh báo thiết lập
-                      <Button variant="contained" color="success" size="small" onClick={handleSavePlant}>
+                      <Button variant="contained" color="success" size="small" onClick={handleUpdatePreset}>
                         Lưu
                       </Button>
                     </Typography>
@@ -448,9 +568,9 @@ export default function AccountSettings() {
                       }}
                     >
                       <Stack spacing={2}>
-                        {presets[plant].map((item, index) => (
+                        {displayAlert.map((item, index) => (
                           <Box
-                            key={item.title}
+                            key={item.key}
                             sx={{
                               background: "#fff",
                               borderRadius: 2,
@@ -467,6 +587,7 @@ export default function AccountSettings() {
                                 • <b>Threshold:</b> Max:{" "}
                                 <TextField
                                   size="small"
+                                  type="number"
                                   value={item.max}
                                   sx={{ width: 100, mx: 1 }}
                                   onChange={(e) => handleChangeValue(index, "max", e.target.value)}
@@ -474,6 +595,7 @@ export default function AccountSettings() {
                                 Min:{" "}
                                 <TextField
                                   size="small"
+                                  type="number"
                                   value={item.min}
                                   sx={{ width: 100, mx: 1 }}
                                   onChange={(e) => handleChangeValue(index, "min", e.target.value)}
