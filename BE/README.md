@@ -22,8 +22,8 @@ Install:
 
 ## 🐳 With docker image:
    ```bash
-   Docker pull mnghia/be-api:latest
-   Docker run  --env-file .env -p 8100:8100 mnghia/be-api:latest
+   Docker pull mnghia/nckh-backend:latest
+   Docker run  --env-file .env -p 8100:8100 mnghia/nckh-backend:latest
    ```
 ## 🛠️ With source code:
    ```bash

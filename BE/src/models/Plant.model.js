@@ -60,9 +60,9 @@ const getDetails = async(id) => {
   }
 }
 
-const getAll = async() => {
+const getAll = async(userId) => {
   try {
-    const result = await GET_DB().collection(PLANT_COLLECTION_NAME).find({ _destroy: false }).toArray()
+    const result = await GET_DB().collection(PLANT_COLLECTION_NAME).find({ userId: new ObjectId(userId), _destroy: false }).toArray()
     return result || {}
   } catch (error) {
     throw new Error(error)

@@ -34,9 +34,9 @@ const getDetails = async (plantId) => {
   }
 }
 
-const getAll = async () => {
+const getAll = async (userId) => {
   try {
-    const result = await plantModel.getAll()
+    const result = await plantModel.getAll(userId)
     if (!result)
       throw new ApiError(StatusCodes.NOT_FOUND, 'Plant not found')
     return result
