@@ -160,7 +160,6 @@ export default function HistoryPage() {
         backgroundPosition: "center",
         backgroundAttachment: "fixed",
         minHeight: "100vh",
-        p: 2,
       }}
     >
       {/* 🌿 Navbar */}
@@ -168,8 +167,7 @@ export default function HistoryPage() {
         position="sticky"
         elevation={1}
         sx={{
-          background: "linear-gradient(to right, #8DB600, #2E8B57)",
-          color: "white",
+          background: "linear-gradient(to right, #6d8c33ff, #184d1bff)", color: "white"
         }}
       >
         <Toolbar sx={{ display: "flex", justifyContent: "space-between" }}>
@@ -178,7 +176,7 @@ export default function HistoryPage() {
           </Typography>
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <Typography>{userData?.name || "Người dùng"}</Typography>
-            <Avatar />
+            <Avatar src={userData?.avatar} />
             <IconButton color="inherit" onClick={handleMenu}>
               <MenuIcon />
             </IconButton>

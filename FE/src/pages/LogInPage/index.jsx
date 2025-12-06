@@ -53,9 +53,9 @@ function LoginPage() {
                     avatar: response.avatar,
                     role: response.role,
                     displayName: response.displayName,
-                    dob: response.dob,
-                    phone: response.phone,
-                    gender: "Nam"
+                    dateOfBirth: response.dateOfBirth,
+                    phoneNumber: response.phoneNumber,
+                    gender: response.gender,
                 }; 
                 try {
                     // localStorage.setItem("accessToken", token);

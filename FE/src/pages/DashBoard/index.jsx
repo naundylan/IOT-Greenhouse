@@ -268,6 +268,7 @@ function DashboardPage() {
     gender: "Non-binary",
     dob: "January 01, 2025",
     email: "havu2845@gmail.com",
+    avartar: "",
   });
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedMetric, setSelectedMetric] = useState(null);
@@ -418,11 +419,13 @@ function DashboardPage() {
     const fetchData = async () => {
       try {
         const userData = JSON.parse(localStorage.getItem("userData"));
+        console.log("🚀 Dữ liệu user từ localStorage:", userData);
         setUserInfo({
           name: userData.name || "Chưa có tên",
           gender: userData.gender || "Không xác định",
-          dob: userData.dob || "Không rõ",
+          dob: userData.dateOfBirth || "Không rõ",
           email: userData.email,
+          avatar: userData.avatar || "",
         });
         setLoading(false);
       } catch (err) {
@@ -539,8 +542,7 @@ function DashboardPage() {
             >
               {userInfo.name}
             </Typography>
-            <Avatar sx={{ cursor: "pointer" }} onClick={handleOpenUserDialog} />
-
+            <Avatar src={userInfo?.avatar} sx={{ cursor: "pointer" }} onClick={handleOpenUserDialog} />
             <IconButton color="inherit" onClick={handleClickMenu}>
               <MenuIcon />
             </IconButton>

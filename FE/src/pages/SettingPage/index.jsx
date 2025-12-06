@@ -20,6 +20,8 @@ import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import ShareIcon from "@mui/icons-material/Share";
 import { logout } from "../../services/authService";
+import { updateUserProfile } from "../../services/userService";
+
 
 const defaultPresets = {
   "4 season lettuce": [
@@ -56,7 +58,7 @@ export default function AccountSettings() {
   const handleClickMenu = (event) => setAnchorEl(event.currentTarget);
   const handleCloseMenu = () => setAnchorEl(null);
   const handleLogout = async () => {
-    await logout ();
+    await logout();
     navigate("/login");
   };
 
@@ -72,8 +74,17 @@ export default function AccountSettings() {
   }
   const [isEditing, setIsEditing] = useState(false);
   const [selected, setSelected] = useState("Tài khoản");
-  const [avatar, setAvatar] = useState(null);
   const [userData, setUserData] = useState(JSON.parse(localStorage.getItem("userData")));
+  console.log("User Data in Setting Page:", userData);
+  const [formData, setFormData] = useState({
+    displayName: userData.displayName,
+    avatar: userData.avatar,
+    currentPassword: null,
+    newPassword: null,
+    gender: userData.gender,
+    phoneNumber: userData.phone,
+    dateOfBirth: userData.dob,
+  });
   const [plant, setPlant] = React.useState("4 season lettuce");
 
   const [presets, setPresets] = React.useState(() => {
@@ -100,15 +111,33 @@ export default function AccountSettings() {
   }, []);
 
 
-
   const handleSavePlant = () => {
     localStorage.setItem("Thông báo", JSON.stringify(presets));
     alert(`✅ Settings saved for ${plant}!`);
   };
-  const handleSave = () => setIsEditing(false);
+
+
+  const handleSave = async () => {
+    try {
+      // Tắt chế độ edit
+      setIsEditing(false);
+
+      const response = await updateUserProfile(formData);
+      localStorage.setItem("userData", JSON.stringify(userData));
+      return response; // để nơi gọi có thể show toast, reload UI,...
+
+    } catch (error) {
+      console.error("Failed to update profile:", error);
+      return null;
+    }
+  };
+
+
   const handleChange = (field, value) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
     setUserData((prev) => ({ ...prev, [field]: value }));
   };
+
   const handleChangeValue = (paramIndex, key, value) => {
     setPresets((prev) => {
       const newPresets = { ...prev };
@@ -116,10 +145,35 @@ export default function AccountSettings() {
       return newPresets;
     });
   };
-  const handleAvatarChange = (e) => {
+  const handleAvatarChange = async (e) => {
     const file = e.target.files[0];
-    if (file) setAvatar(URL.createObjectURL(file));
+    if (!file) return;
+
+    //Todo: upload file to server and get URL
+
+    const url = URL.createObjectURL(file);
+
+    // Tạo object mới, không phụ thuộc vào state cũ
+    const updatedData = {
+      ...formData,
+      avatar: url,
+    };
+
+    // Cập nhật state
+    setUserData((prev) => ({ ...prev, avatar: url }));
+    setFormData(updatedData);
+
+    console.log("Selected avatar file:", url);
+
+    // Gọi API với dữ liệu mới
+    try {
+      const response = await updateUserProfile(updatedData);
+      console.log("Updated profile:", response);
+    } catch (error) {
+      console.error("Failed to update profile:", error);
+    }
   };
+
 
   const menuItems = [
     { label: "Tài khoản", icon: <AccountCircleIcon /> },
@@ -150,7 +204,7 @@ export default function AccountSettings() {
           </Typography>
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <Typography>{userData.name}</Typography>
-            <Avatar src={avatar} />
+            <Avatar src={userData.avatar} />
             <IconButton color="inherit" onClick={handleClickMenu}>
               <MenuIcon />
             </IconButton>
@@ -280,7 +334,7 @@ export default function AccountSettings() {
                 >
                   <Stack direction="row" alignItems="center" spacing={2}>
                     <Avatar
-                      src={avatar}
+                      src={userData.avatar}
                       sx={{ width: 70, height: 70, border: "2px solid #ccc" }}
                     />
                     <Box>
@@ -323,9 +377,9 @@ export default function AccountSettings() {
                 {[
                   { label: "Họ và tên", field: "displayName" },
                   { label: "Giới tính", field: "gender" },
-                  { label: "Ngày sinh", field: "dob" },
+                  { label: "Ngày sinh", field: "dateOfBirth" },
                   { label: "Email", field: "email" },
-                  { label: "Số điện thoại", field: "phone" },
+                  { label: "Số điện thoại", field: "phoneNumber" },
                 ].map(({ label, field }) => (
                   <InfoRow
                     key={field}

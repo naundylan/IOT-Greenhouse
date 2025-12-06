@@ -12,7 +12,8 @@ const apiClient = axios.create({
 setupInterceptors(apiClient);
 
 export const updateUserProfile = async (profileData) => {
-    return await apiClient.put('/update', profileData); 
+    
+    return await apiClient.put('users/update', profileData); 
 };
 
 export const changePassword = async (passwordData) => {
