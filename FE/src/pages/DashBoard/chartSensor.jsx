@@ -24,7 +24,7 @@ const SensorChart = ({ chartData }) => {
                 const originalDate = new Date(item.time);
                 return {
                     ...item,
-                    time: originalDate.getTime() + SEVEN_HOURS,
+                    time: originalDate.getTime(),
                 };
             })
             .sort((a, b) => a.time - b.time);

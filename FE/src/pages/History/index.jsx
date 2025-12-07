@@ -55,7 +55,6 @@ export default function HistoryPage() {
     const fetchHistory = async () => {
       try {
         const res = await getHistoryByDate(deviceId, selectedDate);
-
         const mergedDataTables = res.map((item) => {
           return {
             time: item.time.split("T")[1].slice(0, 5),
@@ -68,7 +67,6 @@ export default function HistoryPage() {
           };
         });
         setDataTable(mergedDataTables);
-
         // Ghép dữ liệu theo 24 giờ
         const hours = Array.from({ length: 24 }, (_, i) =>
           `${i.toString().padStart(2, "0")}:00`
