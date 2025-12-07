@@ -166,6 +166,7 @@ const processThreshold = async (parameterName, value, thresholds, commands, aler
   if (!check) {
     // Xoá tracker nếu có
     if (alertTrackers.has(trackKey)) {
+      Logger.info(`Giá trị ${parameterName} trở về bình thường, xoá tracker cảnh báo.`)
       alertTrackers.delete(trackKey)
     }
     if ( isAuto && commands?.off) {
@@ -204,6 +205,7 @@ const processThreshold = async (parameterName, value, thresholds, commands, aler
     tracker.count +=1
     Logger.info(`Gửi mail lần thứ ${tracker.count}`)
     if ( tracker.count ===3) {
+      tracker.level = 0
       const waitTime = trackBackoff(0)
       tracker.lastAlertTime = currentTime + waitTime
       Logger.info(`Đạt ngưỡng 3 lần, bắt đầu time chờ ${waitTime/60000} phút`)
@@ -211,9 +213,10 @@ const processThreshold = async (parameterName, value, thresholds, commands, aler
   } else {
     if ( currentTime > tracker.lastAlertTime) {
       shouldSendEmail = true
-      tracker.level +=1
+      if ( tracker.level <2 )
+        tracker.level +=1
       const waitTime = trackBackoff(tracker.level)
-      tracker.nextAllowTime = currentTime + waitTime
+      tracker.lastAlertTime = currentTime + waitTime
       Logger.info(`Hết time chờ bắt đầu gửi lại mail, level ${tracker.level}, time chờ tiếp theo ${waitTime/60000} phút`)
     }
     else {
