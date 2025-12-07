@@ -20,16 +20,6 @@ import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import ShareIcon from "@mui/icons-material/Share";
 
-const MOCK_USER = {
-  fullName: "Username",
-  gender: "Non-binary",
-  dob: "2025-01-01",
-  email: "havu2845@gmail.com",
-  phone: "0974546812",
-  username: "username",
-  password: "********",
-};
-
 
 const defaultPresets = {
   "4 season lettuce": [
@@ -83,7 +73,7 @@ export default function AccountSettings() {
   const [isEditing, setIsEditing] = useState(false);
   const [selected, setSelected] = useState("Account");
   const [avatar, setAvatar] = useState(null);
-  const [userData, setUserData] = useState(MOCK_USER);
+  const [userData, setUserData] = useState(JSON.parse(localStorage.getItem("userData")));
   const [plant, setPlant] = React.useState("4 season lettuce");
   const [presets, setPresets] = React.useState(() => {
     const saved = localStorage.getItem("alert-presets");
