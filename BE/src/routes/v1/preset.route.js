@@ -7,6 +7,7 @@ const Router = express.Router()
 
 Router.route('/')
   .post(auth.isAuthorized, presetValidation.createNew, presetController.createNew)
+  .get(auth.isAuthorized, presetController.getAll)
 
 Router.route('/:id')
   .put(auth.isAuthorized, presetValidation.update, presetController.update)

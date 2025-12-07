@@ -24,8 +24,22 @@ const update = async(req, res, next) => {
   } catch (error) { next(error) }
 }
 
+const getAll = async(req, res, next) => {
+  try {
+    const plantId = req.query.plantId
+    if (!plantId) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ message: 'plantId is required' })
+    }
+    const result = await presetService.getAll(plantId)
+    res.status(StatusCodes.OK).json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
 export const presetController = {
   createNew,
   getDetails,
-  update
+  update,
+  getAll
 }

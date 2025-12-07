@@ -70,7 +70,7 @@ const aggregateHourlyData = async (timePrefix) => {
     { $group: {
       _id: {
         sensor: '$sensor',
-        timeKey: { $substr: ['$time', 0, 13] }
+        timeKey: { $dateToString: { format: '%Y-%m-%dT%H', date: { $toDate: '$serverReceivedAt' }, timezone: '+07:00' } }
       },
       avg_light: { $avg: '$light' },
       avg_co2: { $avg: '$co2' },
